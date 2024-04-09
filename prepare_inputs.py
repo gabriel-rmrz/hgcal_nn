@@ -4,8 +4,6 @@ import awkward as ak
 import numpy as np
 import uproot as uproot
 import matplotlib.pyplot as plt
-from ROOT import TVector2
-#import pickle
 
 def myhist(X, bins=30, title='title', xlabel='time (ns)', ylabel='Counts / bin', color='dodgerblue', alpha=1, fill='stepfilled', range=None, label="data"):
   #plt.figure(dpi=100)
@@ -74,6 +72,7 @@ def prepare(filename, suf, isPU=False):
   simToReco_score = associations["Mergetracksters_simToReco_CP_score"].array()
   simToReco_index = associations["Mergetracksters_simToReco_CP"].array()
   
+  '''
   simToRecoPU_en = associations["Mergetracksters_simToReco_PU_sharedE"].array()
   simToRecoPU_score = associations["Mergetracksters_simToReco_PU_score"].array()
   simToRecoPU_index = associations["Mergetracksters_simToReco_PU"].array()
@@ -81,6 +80,7 @@ def prepare(filename, suf, isPU=False):
   recoToSimPU_en = associations["Mergetracksters_recoToSim_PU_sharedE"].array()
   recoToSimPU_score = associations["Mergetracksters_recoToSim_PU_score"].array()
   recoToSimPU_index = associations["Mergetracksters_recoToSim_PU"].array()
+  '''
 
   # Creating the voxels for the different trackstersMerged
   #features_perTracksterMerged
@@ -237,7 +237,7 @@ def main():
   #filename = 'histo_4Pions_0PU_pt10to100_eta17to27.root'
   sample_label = "4pions"
   file_sufix = [
-   '4Pion_PU200',
+   #'4Pion_PU200',
    '4Photon_PU200',
    '4Photons_0PU',                    
    '4Pions_0PU',
