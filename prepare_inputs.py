@@ -81,6 +81,7 @@ def prepare(filename, suf, isPU=False):
   recoToSimPU_score = associations["Mergetracksters_recoToSim_PU_score"].array()
   recoToSimPU_index = associations["Mergetracksters_recoToSim_PU"].array()
   '''
+  print(len(tsLinkedInCand))
 
   # Creating the voxels for the different trackstersMerged
   #features_perTracksterMerged
@@ -91,8 +92,8 @@ def prepare(filename, suf, isPU=False):
   tTsM = ak.ArrayBuilder()
 
   #for i, ev in enumerate(indices_linkedTracksters): # looping over all the events
-  #for i, ev in enumerate(tsLinkedInCand): # looping over all the events
-  for i, ev in enumerate(tsLinkedInCand[:10]): # looping over all the events
+  for i, ev in enumerate(tsLinkedInCand): # looping over all the events
+  #for i, ev in enumerate(tsLinkedInCand[:10]): # looping over all the events
     if not (i%10) :
       print(f"%%%%%%%%%%%%%%% Event {i} %%%%%%%%%%%%%%%")
     '''
@@ -132,6 +133,7 @@ def prepare(filename, suf, isPU=False):
       '''
 
       delta_phiTs, bphiTs_mean = get_delta_phi(bphiTs[i][mTs])
+      #TODO: Check the 1.1 factor for the mins.
       min_phi = 1.1*np.min(delta_phiTs)
       max_phi = 1.1*np.max(delta_phiTs)
       min_z = 1.1*np.min(delta_zTs)
@@ -139,7 +141,7 @@ def prepare(filename, suf, isPU=False):
 
       rel_pos = np.array([delta_etaTs, delta_phiTs, delta_zTs]).T
 
-      bins = [8,8,8]
+      bins = [10,10,10]
       if DEBUG:
         print(rel_pos)
         print(reg_enTs[i][mTs])
@@ -235,13 +237,14 @@ def main():
   #filename = 'histo_SinglePi0PU_pT20to200_eta17to27.root'
   #filename = 'histo_SinglePi_withLinks.root'
   #filename = 'histo_4Pions_0PU_pt10to100_eta17to27.root'
-  sample_label = "4pions"
   file_sufix = [
-   #'4Pion_PU200',
-   '4Photon_PU200',
    '4Photons_0PU',                    
    '4Pions_0PU',
    'SinglePi']
+   
+   #'4Pion_PU200'
+   #'4Photon_PU200'
+   #]
   for suf in file_sufix:
     deltaTsM_1D, fTsM_1D, fTsM_g3D, tTsM = prepare(f"data/histo_{suf}.root", suf, isPU=False)
     print(deltaTsM_1D.type)
