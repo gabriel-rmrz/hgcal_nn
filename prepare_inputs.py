@@ -1,9 +1,10 @@
 DEBUG=False
-DOPLOTS=True
+DOPLOTS=False
 import awkward as ak
 import numpy as np
 import uproot as uproot
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 def myhist(X, bins=30, title='title', xlabel='time (ns)', ylabel='Counts / bin', color='dodgerblue', alpha=1, fill='stepfilled', range=None, label="data"):
   #plt.figure(dpi=100)
@@ -35,7 +36,7 @@ def get_delta_phi(bphiTs_i):
   
   return delta_phiTs, bphiTs_mean
 
-def prepare(filename, suf, isPU=False):
+def prepare(filename, suf, bins= [6,6,6], isPU=False):
   print(f"Reading {filename}...")
   file = uproot.open(filename)
   
@@ -92,61 +93,50 @@ def prepare(filename, suf, isPU=False):
   tTsM = ak.ArrayBuilder()
 
   #for i, ev in enumerate(indices_linkedTracksters): # looping over all the events
-  for i, ev in enumerate(tsLinkedInCand): # looping over all the events
-  #for i, ev in enumerate(tsLinkedInCand[:10]): # looping over all the events
+  #for i, ev in enumerate(simToReco_index): # looping over all the events
+  #for i, ev in enumerate(simToReco_index[:100]): # looping over all the events
+  #for i, ev in enumerate(tsLinkedInCand): # looping over all the events
+  for i, ev in enumerate(tsLinkedInCand[:10]): # looping over all the events
     if not (i%10) :
       print(f"%%%%%%%%%%%%%%% Event {i} %%%%%%%%%%%%%%%")
-    '''
-    print(f"simToReco_index[{i}]: {simToReco_index[i]}")
-    print(f"len(simToReco_index[{i}]): {len(simToReco_index[i])}")
-    print(f"simToReco_index[{i}][0]: {simToReco_index[i][0]}") # Explore the first simulated particle
-    print(f"len(simToReco_index[{i}][0]): {len(simToReco_index[i][0])}")
-    for j in range(len(simToReco_index[i])):
-      print("############")
-      print(f"j: {j}")
-      print("############")
-      isPassScoreSim = simToReco_score[i][j] < 0.35
-      print(f"simToReco_score[i][j]: {simToReco_score[i][j]}")
-      for simTs0 in simToReco_index[i][j][isPassScoreSim]:
-        print(f"candidate_raw_energy[{i}][{simTs0}][isPassScoreSim]: {candidate_raw_energy[i][simTs0]}")
-    exit()
-    '''
     print(ev.type)
     for j, mTs in enumerate(ev): #looping over the mergedTracksters 
+
       ###################################
       ## Defition of the inputs
-      ##################################
-      #betaTs_mean = np.mean(betaTs[i][mTs])
+      '''
       min_abseta= 1.2
       max_abseta = 3.3
       betaTs_mean = (min_abseta+max_abseta)/2.
+      delta_etaTs = np.abs(betaTs[i][mTs]) - min_abseta
+      '''
+      betaTs_mean = np.mean(betaTs[i][mTs])
+      delta_etaTs = betaTs[i][mTs] - betaTs_mean
+      min_eta = np.min(delta_etaTs)
+      max_eta = np.max(delta_etaTs)
+
       bphiTs_mean = np.mean(bphiTs[i][mTs])
       bzTs_mean = np.mean(bzTs[i][mTs])
 
-      delta_etaTs = np.abs(betaTs[i][mTs]) - min_abseta
       delta_zTs = bzTs[i][mTs] - bzTs_mean
 
-      '''
-      print(bzTs_mean)
-      print(bzTs[i][mTs])
-      print(delta_zTs)
-      '''
 
       delta_phiTs, bphiTs_mean = get_delta_phi(bphiTs[i][mTs])
       #TODO: Check the 1.1 factor for the mins.
-      min_phi = 1.1*np.min(delta_phiTs)
-      max_phi = 1.1*np.max(delta_phiTs)
-      min_z = 1.1*np.min(delta_zTs)
-      max_z = 1.1*np.max(delta_zTs)
+      min_phi = np.min(delta_phiTs)
+      max_phi = np.max(delta_phiTs)
+      min_z = np.min(delta_zTs)
+      max_z = np.max(delta_zTs)
 
       rel_pos = np.array([delta_etaTs, delta_phiTs, delta_zTs]).T
 
-      bins = [10,10,10]
       if DEBUG:
         print(rel_pos)
         print(reg_enTs[i][mTs])
-      fTsM_g3D.append(np.array([np.histogramdd(rel_pos, bins=bins,range=[[min_abseta,max_abseta],[min_phi,max_phi], [min_z, max_z]])[0],
-                          np.histogramdd(rel_pos, weights=np.asarray(reg_enTs[i][mTs]), bins=bins, range=[[min_abseta,max_abseta],[min_phi,max_phi], [min_z, max_z]])[0]]))
+      fTsM_g3D.append(np.array([np.histogramdd(rel_pos, bins=bins,range=[[min_eta,max_eta],[min_phi,max_phi], [min_z, max_z]])[0],
+                          np.histogramdd(rel_pos, weights=np.asarray(reg_enTs[i][mTs]), bins=bins, range=[[min_eta,max_eta],[min_phi,max_phi], [min_z, max_z]])[0]]))
+      #fTsM_g3D.append(np.array([np.histogramdd(rel_pos, bins=bins,range=[[min_abseta,max_abseta],[min_phi,max_phi], [min_z, max_z]])[0],
+      #                    np.histogramdd(rel_pos, weights=np.asarray(reg_enTs[i][mTs]), bins=bins, range=[[min_abseta,max_abseta],[min_phi,max_phi], [min_z, max_z]])[0]]))
       fTsM_1D.append(np.array([betaTs_mean, bphiTs_mean, bzTs_mean]))
       deltaTsM_1D.append(np.array([delta_etaTs, delta_phiTs, delta_zTs]))
       if DEBUG:
@@ -166,21 +156,13 @@ def prepare(filename, suf, isPU=False):
       min_energy_r2s = 0.5
       #isPass = ((recoToSim_score[i][j] < max_score_r2s) & (recoToSim_en[i][j] > min_energy_r2s))
       isPassScore = recoToSim_score[i][j] < max_score_r2s 
-      #print(f"recoToSim_index[i][j]: {recoToSim_index[i][j]}")
-      #print(f"recoToSim_score[{i}][{j}][isPassScore]: {recoToSim_score[i][j][isPassScore]}")
-      #print(f"recoToSim_en[{i}][{j}][isPassScore]: {recoToSim_en[i][j][isPassScore]}")
-      #print(f"recoToSim_index[{i}][{j}][isPassScore]: {recoToSim_index[i][j][isPassScore]}")
-      #print(f"isPassScore: {isPassScore}")
       en_frac = recoToSim_en[i][j][isPassScore]/simTICLCandidate_regressed_energy[i][recoToSim_index[i][j][isPassScore]]
 
 
       isPass = False
       if np.any(en_frac > 0.5):
-        if DEBUG:
-          print(f"i / recoToSim_index[i][j][isPassScore]: {i} / {recoToSim_index[i][j][isPassScore]}")
-          print(f"en_frac: {en_frac}")
         isPass = True
-      tTsM.append(np.array([isPass]))
+      tTsM.append(isPass)
 
   fTsM_g3D = fTsM_g3D.snapshot()
   fTsM_1D = fTsM_1D.snapshot()
@@ -194,6 +176,25 @@ def prepare(filename, suf, isPU=False):
   ak.to_parquet(deltaTsM_1D, f"data/{suf}_deltaTsM_1D.parquet")
   form_2, lenght_2, container_2 = ak.to_buffers(tTsM)
   ak.to_parquet(tTsM, f"data/{suf}_tTsM.parquet")
+
+  print(f"tTsM.type: { tTsM.type}")
+
+  if DOPLOTS:
+    print("####################")
+    print("if this does not work is probably because we don't have enough TICLCandidate passing the energy cut")
+    print("####################")
+    vox_in = (np.array(fTsM_g3D)[tTsM,0,:,:,:] > 0).astype(np.int32)
+    fig = plt.figure(figsize=(30,30), dpi=200)
+    for sp in range(1,26,1):
+      ax = fig.add_subplot(5,5,sp, projection='3d')
+      #ax = fig.gca( projection='3d')
+      vox = vox_in[sp]
+      print(sp)
+      print(vox)
+      ax.voxels(vox, shade=True, alpha=0.45)
+    plt.savefig("voxel_test.png")
+    plt.clf()
+
   return deltaTsM_1D, fTsM_1D, fTsM_g3D, tTsM
 
 def plot_vars(deltaTsM_1D, fTsM_1D, fTsM_g3D, tTsM, suf):
@@ -238,15 +239,15 @@ def main():
   #filename = 'histo_SinglePi_withLinks.root'
   #filename = 'histo_4Pions_0PU_pt10to100_eta17to27.root'
   file_sufix = [
-   '4Photons_0PU',                    
-   '4Pions_0PU',
+   #'4Pion_PU200',
+   #'4Photons_0PU',                    
+   #'4Pions_0PU',
    'SinglePi']
    
-   #'4Pion_PU200'
    #'4Photon_PU200'
    #]
   for suf in file_sufix:
-    deltaTsM_1D, fTsM_1D, fTsM_g3D, tTsM = prepare(f"data/histo_{suf}.root", suf, isPU=False)
+    deltaTsM_1D, fTsM_1D, fTsM_g3D, tTsM = prepare(f"data/histo_{suf}.root", suf, bins=[6,6,6], isPU=False)
     print(deltaTsM_1D.type)
     print(fTsM_1D.type)
 

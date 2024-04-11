@@ -28,8 +28,8 @@ def cnn_model2(input_shape):
   voxel_input = Input(shape=input_shape, name="voxel_grid")
   x = layers.Conv3D(32, (3,3,3), activation="relu")(voxel_input)
   x = layers.MaxPooling3D((2,2,2))(x)
-  x = layers.Conv3D(64, (3,3,3), activation="relu")(x)
-  x = layers.MaxPooling3D((2,2,2))(x)
+  #x = layers.Conv3D(64, (3,3,3), activation="relu")(x)
+  #x = layers.MaxPooling3D((2,2,2))(x)
   x = layers.Flatten()(x)
 
   scalar_input = Input(shape=(3,), name="scalar_features")
@@ -79,7 +79,7 @@ def main():
   fTsM_3D = np.asarray(fTsM_3D)
   fTsM_3D = np.transpose(fTsM_3D, [0,2,3,4,1])
   
-  input_3D_shape = (10, 10, 10,2)
+  input_3D_shape = (6, 6, 6,2)
   
   # Create the model
   '''
@@ -94,11 +94,12 @@ def main():
   print(history.history['accuracy'])
   '''
 
+  thr = int(.7*len(tTsM))
   model2 = cnn_model2(input_3D_shape)
   model2.summary()
   history2 = model2.fit(
-      [fTsM_3D[:10000], fTsM_1D[:10000]], tTsM[:10000],
-      validation_data=([fTsM_3D[10000:15000], fTsM_1D[10000:15000]], tTsM[10000:15000]),
+      [fTsM_3D[:thr], fTsM_1D[:thr]], tTsM[:thr],
+      validation_data=([fTsM_3D[thr:], fTsM_1D[thr:]], tTsM[thr:]),
       epochs= 40,
       batch_size= 32
       )
