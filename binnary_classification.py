@@ -67,9 +67,13 @@ def main():
   #target_file='data/4Photon_PU200_tTsM.parquet'
   #features_1D_file ='data/4Photon_PU200_fTsM_1D.parquet'
   #features_3D_file ='data/4Photon_PU200_grid_3D.parquet'
-  target_file='data/4Pions_0PU_tTsM.parquet'
-  features_1D_file ='data/4Pions_0PU_fTsM_1D.parquet'
-  features_3D_file ='data/4Pions_0PU_grid_3D.parquet'
+  #target_file='data/4Pions_0PU_tTsM.parquet'
+  #features_1D_file ='data/4Pions_0PU_fTsM_1D.parquet'
+  #features_3D_file ='data/4Pions_0PU_grid_3D.parquet'
+  prefix = "kaon_PU75"
+  target_file=f"data/{prefix}_tTsM.parquet"
+  features_1D_file =f"data/{prefix}_fTsM_1D.parquet"
+  features_3D_file =f"data/{prefix}_grid_3D.parquet"
   tTsM = load_fromParquet(target_file)
   fTsM_1D = load_fromParquet(features_1D_file)
   fTsM_3D = load_fromParquet(features_3D_file)
@@ -94,7 +98,7 @@ def main():
   print(history.history['accuracy'])
   '''
 
-  thr = int(.7*len(tTsM))
+  thr = int(.6*len(tTsM))
   model2 = cnn_model2(input_3D_shape)
   model2.summary()
   history2 = model2.fit(
