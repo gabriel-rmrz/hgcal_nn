@@ -1,5 +1,5 @@
 DEBUG=False
-DOPLOTS=False
+DOPLOTS=True
 import awkward as ak
 import numpy as np
 import uproot as uproot
@@ -46,9 +46,11 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
   trackstersMerged = file["ticlDumper/trackstersMerged"]
   associations = file["ticlDumper/associations"]
   clusters = file["ticlDumper/clusters"]
+  TICLCandidate = file["ticlDumper/candidates"]
   
   simtrackstersCP_raw_energy = simtrackstersCP["raw_energy"].array()
 
+  tsLinkedInCand = TICLCandidate["trackstersLinked_in_candidate"].array()
 
   tErrTs = tracksters["timeError"].array()
   bxTs = tracksters["barycenter_x"].array()
@@ -82,12 +84,11 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
       isPassScore0 =ak.flatten(simToReco_score[i], axis=None) < 0.35
       simMatched = s[isPassScore0]
       #simMatched = s[simToReco_score[i] < 0.35]
-      mTs = ak.flatten(simToReco_index[i])[isPassScore0]
+      mTsM = ak.flatten(simToReco_index[i])[isPassScore0]
+      print(f"tsLinkedInCand[i][mTsM].type: {tsLinkedInCand[i][mTsM].type}")
+      print(f"tsLinkedInCand[i][mTsM]: {tsLinkedInCand[i][mTsM]}")
+      mTs = ak.flatten(tsLinkedInCand[i][mTsM])
       mTs_en = ak.flatten(simToReco_en[i])[isPassScore0]
-      print(f"s: {s}")
-      print(f"simMatched: {simMatched}")
-      print(f"simToReco_score[i]: {simToReco_score[i]}")
-      print(f"simToReco_en[i]: {simToReco_en[i]}")
       if len(mTs)==0:
         continue
 
@@ -99,6 +100,7 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
       betaTs_mean = (min_abseta+max_abseta)/2.
       delta_etaTs = np.abs(betaTs[i][mTs]) - min_abseta
       '''
+      print(f"betaTs[i][mTs]: {betaTs[i][mTs]}")
       betaTs_mean = np.mean(betaTs[i][mTs])
       delta_etaTs = betaTs[i][mTs] - betaTs_mean
       min_eta = np.min(delta_etaTs)
@@ -244,6 +246,8 @@ def prepare(filename, suf, bins= [6,6,6], isPU=False):
 
   # Creating the voxels for the different trackstersMerged
   #features_perTracksterMerged
+  fTsM_pos = ak.ArrayBuilder()
+
   fTsM_g3D = ak.ArrayBuilder()
   fTsM_1D = ak.ArrayBuilder()
   deltaTsM_1D = ak.ArrayBuilder()
@@ -254,7 +258,7 @@ def prepare(filename, suf, bins= [6,6,6], isPU=False):
   #for i, ev in enumerate(simToReco_index): # looping over all the events
   #for i, ev in enumerate(simToReco_index[:100]): # looping over all the events
   #for i, ev in enumerate(tsLinkedInCand): # looping over all the events
-  for i, ev in enumerate(tsLinkedInCand[:10]): # looping over all the events
+  for i, ev in enumerate(tsLinkedInCand[:40]): # looping over all the events
     if not (i%10) :
       print(f"%%%%%%%%%%%%%%% Event {i} %%%%%%%%%%%%%%%")
     print(ev.type)
@@ -287,6 +291,7 @@ def prepare(filename, suf, bins= [6,6,6], isPU=False):
       max_z = np.max(delta_zTs)
 
       rel_pos = np.array([delta_etaTs, delta_phiTs, delta_zTs]).T
+      fTsM_pos.append(rel_pos)
 
       if DEBUG:
         print(rel_pos)
@@ -322,6 +327,7 @@ def prepare(filename, suf, bins= [6,6,6], isPU=False):
       if np.any(en_frac > 0.5):
         isPass = True
       tTsM.append(isPass)
+  fTsM_pos = fTsM_pos.snapshot()
 
   fTsM_g3D = fTsM_g3D.snapshot()
   fTsM_1D = fTsM_1D.snapshot()
@@ -335,6 +341,8 @@ def prepare(filename, suf, bins= [6,6,6], isPU=False):
   ak.to_parquet(deltaTsM_1D, f"data/{suf}_deltaTsM_1D.parquet")
   form_2, lenght_2, container_2 = ak.to_buffers(tTsM)
   ak.to_parquet(tTsM, f"data/{suf}_tTsM.parquet")
+  form_3, lenght_3, container_3 = ak.to_buffers(fTsM_g3D)
+  ak.to_parquet(fTsM_pos, f"data/{suf}_point_cloud.parquet")
 
   print(f"tTsM.type: { tTsM.type}")
   print(f"len(tTsM): { len(tTsM)}")
@@ -356,7 +364,7 @@ def prepare(filename, suf, bins= [6,6,6], isPU=False):
     plt.savefig("voxel_test.png")
     plt.clf()
 
-  return deltaTsM_1D, fTsM_1D, fTsM_g3D, tTsM
+  return deltaTsM_1D, fTsM_1D, fTsM_g3D, fTsM_pos, tTsM
 
 def plot_vars(deltaTsM_1D, fTsM_1D, fTsM_g3D, tTsM, suf):
     myhist(ak.flatten(deltaTsM_1D[:,0], axis=None), title="Delta_eta", xlabel="eta-eta_mean for TsM", ylabel="Counts/bin", bins=45, label=suf)
@@ -400,17 +408,18 @@ def main():
   #filename = 'histo_SinglePi_withLinks.root'
   #filename = 'histo_4Pions_0PU_pt10to100_eta17to27.root'
   file_sufix = [
-   'kaon_PU75']
+   #'kaon_PU75']
    #'4Pion_PU200',
    #'4Photons_0PU',                    
    #'4Pions_0PU',
-   #'SinglePi']
+   'SinglePi']
    
    #'4Photon_PU200'
    #]
+  bins = [20,20,20]
   for suf in file_sufix:
-    #deltaTsM_1D, fTsM_1D, fTsM_g3D, tTsM = prepare(f"data/histo_{suf}.root", suf, bins=[6,6,6], isPU=False)
-    deltaTsM_1D, fTsM_1D, fTsM_g3D, tTsM = prepare_fromSim(f"data/histo_{suf}.root", suf, bins=[6,6,6], isPU=False)
+    deltaTsM_1D, fTsM_1D, fTsM_g3D, fTsM_pos, tTsM = prepare(f"data/histo_{suf}.root", suf, bins=bins, isPU=False)
+    #deltaTsM_1D, fTsM_1D, fTsM_g3D, tTsM = prepare_fromSim(f"data/histo_{suf}.root", suf, bins=bins, isPU=False)
     print(deltaTsM_1D.type)
     print(fTsM_1D.type)
 
