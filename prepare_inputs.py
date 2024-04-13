@@ -257,8 +257,8 @@ def prepare(filename, suf, bins= [6,6,6], isPU=False):
   #for i, ev in enumerate(indices_linkedTracksters): # looping over all the events
   #for i, ev in enumerate(simToReco_index): # looping over all the events
   #for i, ev in enumerate(simToReco_index[:100]): # looping over all the events
-  #for i, ev in enumerate(tsLinkedInCand): # looping over all the events
-  for i, ev in enumerate(tsLinkedInCand[:40]): # looping over all the events
+  for i, ev in enumerate(tsLinkedInCand): # looping over all the events
+  #for i, ev in enumerate(tsLinkedInCand[:40]): # looping over all the events
     if not (i%10) :
       print(f"%%%%%%%%%%%%%%% Event {i} %%%%%%%%%%%%%%%")
     print(ev.type)
@@ -410,13 +410,13 @@ def main():
   file_sufix = [
    #'kaon_PU75']
    #'4Pion_PU200',
-   #'4Photons_0PU',                    
-   #'4Pions_0PU',
+   '4Photons_0PU',                    
+   '4Pions_0PU',
    'SinglePi']
    
    #'4Photon_PU200'
    #]
-  bins = [20,20,20]
+  bins = [8,8,8]
   for suf in file_sufix:
     deltaTsM_1D, fTsM_1D, fTsM_g3D, fTsM_pos, tTsM = prepare(f"data/histo_{suf}.root", suf, bins=bins, isPU=False)
     #deltaTsM_1D, fTsM_1D, fTsM_g3D, tTsM = prepare_fromSim(f"data/histo_{suf}.root", suf, bins=bins, isPU=False)

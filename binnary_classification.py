@@ -70,7 +70,8 @@ def main():
   #target_file='data/4Pions_0PU_tTsM.parquet'
   #features_1D_file ='data/4Pions_0PU_fTsM_1D.parquet'
   #features_3D_file ='data/4Pions_0PU_grid_3D.parquet'
-  prefix = "kaon_PU75"
+  #prefix = "4Pions_0PU"
+  prefix = "4Photons_0PU"
   target_file=f"data/{prefix}_tTsM.parquet"
   features_1D_file =f"data/{prefix}_fTsM_1D.parquet"
   features_3D_file =f"data/{prefix}_grid_3D.parquet"
@@ -83,7 +84,7 @@ def main():
   fTsM_3D = np.asarray(fTsM_3D)
   fTsM_3D = np.transpose(fTsM_3D, [0,2,3,4,1])
   
-  input_3D_shape = (6, 6, 6,2)
+  input_3D_shape = (8, 8, 8,2)
   
   # Create the model
   '''
@@ -98,12 +99,16 @@ def main():
   print(history.history['accuracy'])
   '''
 
-  thr = int(.6*len(tTsM))
+  #thr = int(.6*len(tTsM))
+  #thr2=-1
+  thr = 100
+  thr2 = 200
+
   model2 = cnn_model2(input_3D_shape)
   model2.summary()
   history2 = model2.fit(
       [fTsM_3D[:thr], fTsM_1D[:thr]], tTsM[:thr],
-      validation_data=([fTsM_3D[thr:], fTsM_1D[thr:]], tTsM[thr:]),
+      validation_data=([fTsM_3D[thr:thr2], fTsM_1D[thr:thr2]], tTsM[thr:thr2]),
       epochs= 40,
       batch_size= 32
       )
