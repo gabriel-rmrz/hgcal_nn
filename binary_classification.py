@@ -99,10 +99,10 @@ def main():
   print(history.history['accuracy'])
   '''
 
-  #thr = int(.6*len(tTsM))
-  #thr2=-1
-  thr = 100
-  thr2 = 200
+  thr = int(.6*len(tTsM))
+  thr2=-1
+  #thr = 100
+  #thr2 = 200
 
   model2 = cnn_model2(input_3D_shape)
   model2.summary()
