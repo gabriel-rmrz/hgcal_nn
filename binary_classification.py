@@ -2,6 +2,7 @@ import numpy as np
 import awkward as ak
 import tensorflow as tf
 from tensorflow.keras import layers, models, Input
+from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 
 
@@ -25,17 +26,18 @@ def cnn_model(input_shape):
   return model
 
 def cnn_model2(input_shape):
+  tf.keras.backend.clear_session()
   voxel_input = Input(shape=input_shape, name="voxel_grid")
-  x = layers.Conv3D(32, (3,3,3), activation="relu")(voxel_input)
+  x = layers.Conv3D(8, (3,3,3), padding='valid', activation="relu")(voxel_input)
   x = layers.MaxPooling3D((2,2,2))(x)
-  #x = layers.Conv3D(64, (3,3,3), activation="relu")(x)
-  #x = layers.MaxPooling3D((2,2,2))(x)
+  x = layers.Conv3D(8, (3,3,3), padding='valid', activation="relu")(x)
+  x = layers.MaxPooling3D((2,2,2))(x)
   x = layers.Flatten()(x)
 
   scalar_input = Input(shape=(3,), name="scalar_features")
-  y = layers.Dense(32, activation="relu")(scalar_input)
+  y = layers.Dense(8, activation="relu")(scalar_input)
   combined = layers.concatenate([x,y])
-  z = layers.Dense(64, activation="relu")(combined)
+  z = layers.Dense(16, activation="relu")(combined)
   output = layers.Dense(1, activation="sigmoid")(z)
 
   model = models.Model(inputs=[voxel_input, scalar_input], outputs=output)
@@ -84,7 +86,30 @@ def main():
   fTsM_3D = np.asarray(fTsM_3D)
   fTsM_3D = np.transpose(fTsM_3D, [0,2,3,4,1])
   
-  input_3D_shape = (8, 8, 8,2)
+  #fTsM_3D = fTsM_3D[:,:,:,:,0]
+  input_3D_shape = (12, 12, 12,2)
+  fTsM_3D_std_occ = np.std(fTsM_3D[:,:,:,:,0])
+  fTsM_3D_mean_occ = np.mean(fTsM_3D[:,:,:,:,0])
+  fTsM_3D[:,:,:,:,0]= (fTsM_3D[:,:,:,:,0] - fTsM_3D_mean_occ)/ fTsM_3D_std_occ
+
+  fTsM_3D_std_en = np.std(fTsM_3D[:,:,:,:,1])
+  fTsM_3D_mean_en = np.mean(fTsM_3D[:,:,:,:,1])
+  fTsM_3D[:,:,:,:,1]= (fTsM_3D[:,:,:,:,1] - fTsM_3D_mean_en)/ fTsM_3D_std_en
+
+  fTsM_1D_std_eta = np.std(fTsM_1D[:,0])
+  fTsM_1D_mean_eta = np.mean(fTsM_1D[:,0])
+  fTsM_1D[:,0] = (fTsM_1D[:,0] -fTsM_1D_mean_eta)/ fTsM_1D_std_eta
+
+  fTsM_1D_std_phi = np.std(fTsM_1D[:,1])
+  fTsM_1D_mean_phi = np.mean(fTsM_1D[:,1])
+  fTsM_1D[:,1] = (fTsM_1D[:,1] -fTsM_1D_mean_phi)/ fTsM_1D_std_phi
+
+  fTsM_1D_std_z = np.std(fTsM_1D[:,2])
+  fTsM_1D_mean_z = np.mean(fTsM_1D[:,2])
+  fTsM_1D[:,2] = (fTsM_1D[:,2] -fTsM_1D_mean_z)/ fTsM_1D_std_z
+  print(fTsM_1D.shape)
+
+
   
   # Create the model
   '''
@@ -99,18 +124,21 @@ def main():
   print(history.history['accuracy'])
   '''
 
-  thr = int(.6*len(tTsM))
+  thr = int(.8*len(tTsM))
   thr2=-1
   #thr = 100
   #thr2 = 200
 
+  print(f"1-sum(tTsM[:thr])/len(tTsM[:thr]): {1-sum(tTsM[:thr])/len(tTsM[:thr])}")
+  print(f"1-sum(tTsM[thr:thr2])/len(tTsM[thr:thr2]): {1-sum(tTsM[thr:thr2])/len(tTsM[thr:thr2])}")
+  exit()
   model2 = cnn_model2(input_3D_shape)
   model2.summary()
   history2 = model2.fit(
       [fTsM_3D[:thr], fTsM_1D[:thr]], tTsM[:thr],
       validation_data=([fTsM_3D[thr:thr2], fTsM_1D[thr:thr2]], tTsM[thr:thr2]),
-      epochs= 40,
-      batch_size= 32
+      epochs= 10,
+      batch_size= 12
       )
   plt.plot(history2.history['accuracy'], label="training")
   plt.plot(history2.history['val_accuracy'], label="validation")

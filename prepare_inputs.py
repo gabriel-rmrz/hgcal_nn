@@ -60,6 +60,10 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
   reg_enTs = tracksters["regressed_energy"].array()
   raw_enTs = tracksters["raw_energy"].array()
 
+  betaCls = clusters["position_eta"].array()
+  bphiCls = clusters["position_phi"].array()
+  bzCls = clusters["position_z"].array()
+
   recoToSim_en = associations["Mergetracksters_recoToSim_CP_sharedE"].array()
   recoToSim_score = associations["Mergetracksters_recoToSim_CP_score"].array()
   recoToSim_index = associations["Mergetracksters_recoToSim_CP"].array()
@@ -129,7 +133,7 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
       #fTsM_g3D.append(np.array([np.histogramdd(rel_pos, bins=bins,range=[[min_abseta,max_abseta],[min_phi,max_phi], [min_z, max_z]])[0],
       #                    np.histogramdd(rel_pos, weights=np.asarray(raw_enTs[i][mTs]), bins=bins, range=[[min_abseta,max_abseta],[min_phi,max_phi], [min_z, max_z]])[0]]))
       fTsM_1D.append(np.array([betaTs_mean, bphiTs_mean, bzTs_mean]))
-      deltaTsM_1D.append(np.array([delta_etaTs, delta_phiTs, delta_zTs]))
+      deltaTsM_1D.append(rel_pos)
       if DEBUG:
         print(bxTs[i][mTs])
         bxTs[i][mTs]
@@ -224,6 +228,12 @@ def prepare(filename, suf, bins= [6,6,6], isPU=False):
   bphiTs = tracksters["barycenter_phi"].array()
   reg_enTs = tracksters["regressed_energy"].array()
   raw_enTs = tracksters["regressed_energy"].array()
+  vtxIdTs = tracksters["vertices_indexes"].array()
+
+  betaCls = clusters["position_eta"].array()
+  bphiCls = clusters["position_phi"].array()
+  bzCls = clusters["position_z"].array()
+  corrected_enCls = clusters["correctedEnergy"].array()
 
   recoToSim_en = associations["Mergetracksters_recoToSim_CP_sharedE"].array()
   recoToSim_score = associations["Mergetracksters_recoToSim_CP_score"].array()
@@ -256,8 +266,8 @@ def prepare(filename, suf, bins= [6,6,6], isPU=False):
 
   #for i, ev in enumerate(indices_linkedTracksters): # looping over all the events
   #for i, ev in enumerate(simToReco_index): # looping over all the events
-  #for i, ev in enumerate(simToReco_index[:100]): # looping over all the events
-  for i, ev in enumerate(tsLinkedInCand): # looping over all the events
+  for i, ev in enumerate(simToReco_index[:40]): # looping over all the events
+  #for i, ev in enumerate(tsLinkedInCand): # looping over all the events
   #for i, ev in enumerate(tsLinkedInCand[:40]): # looping over all the events
     if not (i%10) :
       print(f"%%%%%%%%%%%%%%% Event {i} %%%%%%%%%%%%%%%")
@@ -274,8 +284,6 @@ def prepare(filename, suf, bins= [6,6,6], isPU=False):
       '''
       betaTs_mean = np.mean(betaTs[i][mTs])
       delta_etaTs = betaTs[i][mTs] - betaTs_mean
-      min_eta = np.min(delta_etaTs)
-      max_eta = np.max(delta_etaTs)
 
       bphiTs_mean = np.mean(bphiTs[i][mTs])
       bzTs_mean = np.mean(bzTs[i][mTs])
@@ -284,22 +292,49 @@ def prepare(filename, suf, bins= [6,6,6], isPU=False):
 
 
       delta_phiTs, bphiTs_mean = get_delta_phi(bphiTs[i][mTs])
+      rel_pos = np.array([delta_etaTs, delta_phiTs, delta_zTs]).T
       #TODO: Check the 1.1 factor for the mins.
+
+      min_eta = np.min(delta_etaTs)
+      max_eta = np.max(delta_etaTs)
       min_phi = np.min(delta_phiTs)
       max_phi = np.max(delta_phiTs)
       min_z = np.min(delta_zTs)
       max_z = np.max(delta_zTs)
 
-      rel_pos = np.array([delta_etaTs, delta_phiTs, delta_zTs]).T
+      fTsM_g3D.append(np.array([np.histogramdd(rel_pos, bins=bins,range=[[min_eta,max_eta],[min_phi,max_phi], [min_z, max_z]])[0],
+                          np.histogramdd(rel_pos, weights=np.asarray(raw_enTs[i][mTs]), bins=bins, range=[[min_eta,max_eta],[min_phi,max_phi], [min_z, max_z]])[0]]))
       fTsM_pos.append(rel_pos)
+      '''
+      vtxIds = ak.flatten(vtxIdTs[i][mTs])
+      betaClsInTs = betaCls[i][vtxIds]
+      bphiClsInTs = bphiCls[i][vtxIds]
+      bzClsInTs = bzCls[i][vtxIds]
+
+      betaCls_mean = np.mean(betaClsInTs)
+      delta_etaCls = betaClsInTs - betaCls_mean
+      bzCls_mean = np.mean(bzClsInTs)
+      delta_zCls = bzClsInTs - bzCls_mean
+
+      delta_phiCls, bphiCls_mean = get_delta_phi(bphiClsInTs)
+
+      rel_pos_cls = np.array([delta_etaCls, delta_phiCls, delta_zCls]).T
+
+      min_eta = np.min(delta_etaCls)
+      max_eta = np.max(delta_etaCls)
+      min_phi = np.min(delta_phiCls)
+      max_phi = np.max(delta_phiCls)
+      min_z = np.min(delta_zCls)
+      max_z = np.max(delta_zCls)
 
       if DEBUG:
         print(rel_pos)
         print(raw_enTs[i][mTs])
-      fTsM_g3D.append(np.array([np.histogramdd(rel_pos, bins=bins,range=[[min_eta,max_eta],[min_phi,max_phi], [min_z, max_z]])[0],
-                          np.histogramdd(rel_pos, weights=np.asarray(raw_enTs[i][mTs]), bins=bins, range=[[min_eta,max_eta],[min_phi,max_phi], [min_z, max_z]])[0]]))
-      #fTsM_g3D.append(np.array([np.histogramdd(rel_pos, bins=bins,range=[[min_abseta,max_abseta],[min_phi,max_phi], [min_z, max_z]])[0],
-      #                    np.histogramdd(rel_pos, weights=np.asarray(raw_enTs[i][mTs]), bins=bins, range=[[min_abseta,max_abseta],[min_phi,max_phi], [min_z, max_z]])[0]]))
+      fTsM_g3D.append(np.array([np.histogramdd(rel_pos_cls, bins=bins,range=[[min_eta,max_eta],[min_phi,max_phi], [min_z, max_z]])[0],
+                          np.histogramdd(rel_pos_cls, weights=np.asarray(corrected_enCls[i][vtxIds]), bins=bins, range=[[min_eta,max_eta],[min_phi,max_phi], [min_z, max_z]])[0]], dtype= np.int16))
+      '''
+      #fTsM_g3D.append(np.array([np.histogramdd(rel_pos_cls, bins=bins,range=[[min_abseta,max_abseta],[min_phi,max_phi], [min_z, max_z]])[0],
+      #                    np.histogramdd(rel_pos_cls, weights=np.asarray(raw_enTs[i][mTs]), bins=bins, range=[[min_abseta,max_abseta],[min_phi,max_phi], [min_z, max_z]])[0]]))
       fTsM_1D.append(np.array([betaTs_mean, bphiTs_mean, bzTs_mean]))
       deltaTsM_1D.append(np.array([delta_etaTs, delta_phiTs, delta_zTs]))
       if DEBUG:
@@ -408,15 +443,16 @@ def main():
   #filename = 'histo_SinglePi_withLinks.root'
   #filename = 'histo_4Pions_0PU_pt10to100_eta17to27.root'
   file_sufix = [
+   '4Photons_0PU']
+   #'SinglePi']
    #'kaon_PU75']
    #'4Pion_PU200',
-   '4Photons_0PU',                    
-   '4Pions_0PU',
-   'SinglePi']
+   #'4Photons_0PU',                    
+   #'4Pions_0PU',
    
    #'4Photon_PU200'
    #]
-  bins = [8,8,8]
+  bins = [12,12,12]
   for suf in file_sufix:
     deltaTsM_1D, fTsM_1D, fTsM_g3D, fTsM_pos, tTsM = prepare(f"data/histo_{suf}.root", suf, bins=bins, isPU=False)
     #deltaTsM_1D, fTsM_1D, fTsM_g3D, tTsM = prepare_fromSim(f"data/histo_{suf}.root", suf, bins=bins, isPU=False)
