@@ -83,10 +83,12 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
   # Creating the voxels for the different trackstersMerged
   #features_perTracksterMerged
   fTsM_g3D = ak.ArrayBuilder()
-  fTsM_g3D_cls = ak.ArrayBuilder()
+  fTsM_pos = ak.ArrayBuilder()
   fTsM_1D = ak.ArrayBuilder()
   deltaTsM_1D = ak.ArrayBuilder()
   #target_perTracksterMerged
+  fTsM_pos_cls = ak.ArrayBuilder()
+  fTsM_g3D_cls = ak.ArrayBuilder()
   tTsM = ak.ArrayBuilder()
 
   for i, ev in enumerate(simToReco_index): # looping over all the events
@@ -150,10 +152,8 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
     max_z = np.max(delta_zTs)
 
     rel_pos = np.array([delta_etaTs, delta_phiTs, delta_zTs]).T
+    glob_pos = np.array([betaTs[i][mTs], bphiTs[i][mTs], bzTs[i][mTs]]).T
 
-    if DEBUG:
-      print(rel_pos)
-      print(raw_enTs[i][mTs])
     fTsM_g3D.append(np.array([np.histogramdd(rel_pos, bins=bins,range=[[min_eta,max_eta],[min_phi,max_phi], [min_z, max_z]])[0],
                         np.histogramdd(rel_pos, weights=np.asarray(raw_enTs[i][mTs]), bins=bins, range=[[min_eta,max_eta],[min_phi,max_phi], [min_z, max_z]])[0]]))
     #fTsM_g3D.append(np.array([np.histogramdd(rel_pos, bins=bins,range=[[min_abseta,max_abseta],[min_phi,max_phi], [min_z, max_z]])[0],
@@ -174,7 +174,7 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
     delta_phiCls, bphiCls_mean = get_delta_phi(bphiClsInTs)
 
     rel_pos_cls = np.array([delta_etaCls, delta_phiCls, delta_zCls]).T
-
+    glob_pos_cls = np.array([betaClsInTs, bphiClsInTs, bzClsInTs]).T
     min_eta_cls = np.min(delta_etaCls)
     max_eta_cls = np.max(delta_etaCls)
     min_phi_cls = np.min(delta_phiCls)
@@ -182,14 +182,10 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
     min_z_cls = np.min(delta_zCls)
     max_z_cls = np.max(delta_zCls)
 
-    if DEBUG:
-      print(rel_pos)
-      print(raw_enTs[i][mTs])
     fTsM_g3D_cls.append(np.array([np.histogramdd(rel_pos_cls, bins=bins,range=[[min_eta_cls,max_eta_cls],[min_phi_cls,max_phi_cls], [min_z_cls, max_z_cls]])[0],
                         np.histogramdd(rel_pos_cls, weights=np.asarray(corrected_enCls[i][vtxIds]), bins=bins, range=[[min_eta_cls,max_eta_cls],[min_phi_cls,max_phi_cls], [min_z_cls, max_z_cls]])[0]], dtype= np.int16))
-    if DEBUG:
-      print(bxTs[i][mTs])
-      bxTs[i][mTs]
+    fTsM_pos_cls.append(glob_pos_cls)
+    fTsM_pos.append(glob_pos)
     '''
     for k, ts in enumerate(bxTs[i][mTs]): #looping over the tracksters in every mergedTracksters
       print(ts)
@@ -217,6 +213,8 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
     tTsM.append(isPass)
 
   fTsM_g3D = fTsM_g3D.snapshot()
+  fTsM_pos = fTsM_pos.snapshot()
+  fTsM_pos_cls = fTsM_pos_cls.snapshot()
   fTsM_g3D_cls = fTsM_g3D_cls.snapshot()
   fTsM_1D = fTsM_1D.snapshot()
   deltaTsM_1D = deltaTsM_1D.snapshot()
@@ -231,6 +229,10 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
   ak.to_parquet(tTsM, f"data/{suf}_tTsM.parquet")
   form_3, lenght_3, container_3 = ak.to_buffers(fTsM_g3D_cls)
   ak.to_parquet(fTsM_g3D_cls, f"data/{suf}_grid_3D_cls.parquet")
+  form_4, lenght_4, container_4 = ak.to_buffers(fTsM_pos_cls)
+  ak.to_parquet(fTsM_pos_cls, f"data/{suf}_pos_cls.parquet")
+  form_5, lenght_5, container_5 = ak.to_buffers(fTsM_pos)
+  ak.to_parquet(fTsM_pos, f"data/{suf}_pos.parquet")
 
   print(f"tTsM.type: { tTsM.type}")
   print(f"len(tTsM): { len(tTsM)}")
@@ -254,209 +256,6 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
 
   return deltaTsM_1D, fTsM_1D, fTsM_g3D, fTsM_g3D_cls, tTsM
 
-def prepare(filename, suf, bins= [6,6,6], isPU=False):
-  print(f"Reading {filename}...")
-  file = uproot.open(filename)
-  
-  simtrackstersSC = file["ticlDumper/simtrackstersSC"]
-  simtrackstersCP = file["ticlDumper/simtrackstersCP"]
-  tracksters = file["ticlDumper/tracksters"]
-  linkedTracksters = file["ticlDumper/linkedTracksters"]
-  trackstersMerged = file["ticlDumper/trackstersMerged"]
-  associations = file["ticlDumper/associations"]
-  tracks = file["ticlDumper/tracks"]
-  simTICLCandidate = file["ticlDumper/simTICLCandidate"]
-  TICLCandidate = file["ticlDumper/candidates"]
-  clusters = file["ticlDumper/clusters"]
-  
-  simTICLCandidate_regressed_energy = simTICLCandidate["simTICLCandidate_regressed_energy"].array()
-  simTICLCandidate_raw_energy = simTICLCandidate["simTICLCandidate_raw_energy"].array()
-  
-  indices_linkedTracksters = linkedTracksters["clue3Dts_indices"].array()
-
-  candidate_raw_energy = TICLCandidate["candidate_raw_energy"].array()
-  tsLinkedInCand = TICLCandidate["trackstersLinked_in_candidate"].array()
-
-  tErrTs = tracksters["timeError"].array()
-  bxTs = tracksters["barycenter_x"].array()
-  bzTs = tracksters["barycenter_z"].array()
-  betaTs = tracksters["barycenter_eta"].array()
-  bphiTs = tracksters["barycenter_phi"].array()
-  reg_enTs = tracksters["regressed_energy"].array()
-  raw_enTs = tracksters["regressed_energy"].array()
-  vtxIdTs = tracksters["vertices_indexes"].array()
-
-  betaCls = clusters["position_eta"].array()
-  bphiCls = clusters["position_phi"].array()
-  bzCls = clusters["position_z"].array()
-  corrected_enCls = clusters["correctedEnergy"].array()
-
-  recoToSim_en = associations["Mergetracksters_recoToSim_CP_sharedE"].array()
-  recoToSim_score = associations["Mergetracksters_recoToSim_CP_score"].array()
-  recoToSim_index = associations["Mergetracksters_recoToSim_CP"].array()
-  
-  simToReco_en = associations["Mergetracksters_simToReco_CP_sharedE"].array()
-  simToReco_score = associations["Mergetracksters_simToReco_CP_score"].array()
-  simToReco_index = associations["Mergetracksters_simToReco_CP"].array()
-  
-  '''
-  simToRecoPU_en = associations["Mergetracksters_simToReco_PU_sharedE"].array()
-  simToRecoPU_score = associations["Mergetracksters_simToReco_PU_score"].array()
-  simToRecoPU_index = associations["Mergetracksters_simToReco_PU"].array()
-  
-  recoToSimPU_en = associations["Mergetracksters_recoToSim_PU_sharedE"].array()
-  recoToSimPU_score = associations["Mergetracksters_recoToSim_PU_score"].array()
-  recoToSimPU_index = associations["Mergetracksters_recoToSim_PU"].array()
-  '''
-  print(len(tsLinkedInCand))
-
-  # Creating the voxels for the different trackstersMerged
-  #features_perTracksterMerged
-  fTsM_pos = ak.ArrayBuilder()
-
-  fTsM_g3D = ak.ArrayBuilder()
-  fTsM_1D = ak.ArrayBuilder()
-  deltaTsM_1D = ak.ArrayBuilder()
-  #target_perTracksterMerged
-  tTsM = ak.ArrayBuilder()
-
-  #for i, ev in enumerate(indices_linkedTracksters): # looping over all the events
-  #for i, ev in enumerate(simToReco_index): # looping over all the events
-  #for i, ev in enumerate(simToReco_index[:40]): # looping over all the events
-  #for i, ev in enumerate(tsLinkedInCand): # looping over all the events
-  for i, ev in enumerate(tsLinkedInCand[:40]): # looping over all the events
-    if not (i%10) :
-      print(f"%%%%%%%%%%%%%%% Event {i} %%%%%%%%%%%%%%%")
-    print(ev.type)
-    for j, mTs in enumerate(ev): #looping over the mergedTracksters 
-
-      ###################################
-      ## Defition of the inputs
-      '''
-      min_abseta= 1.2
-      max_abseta = 3.3
-      betaTs_mean = (min_abseta+max_abseta)/2.
-      delta_etaTs = np.abs(betaTs[i][mTs]) - min_abseta
-      '''
-
-      betaTs_mean = np.mean(betaTs[i][mTs])
-      delta_etaTs = betaTs[i][mTs] - betaTs_mean
-
-      bphiTs_mean = np.mean(bphiTs[i][mTs])
-      bzTs_mean = np.mean(bzTs[i][mTs])
-
-      delta_zTs = bzTs[i][mTs] - bzTs_mean
-
-
-      delta_phiTs, bphiTs_mean = get_delta_phi(bphiTs[i][mTs])
-      rel_pos = np.array([delta_etaTs, delta_phiTs, delta_zTs]).T
-      #TODO: Check the 1.1 factor for the mins.
-
-      min_eta = np.min(delta_etaTs)
-      max_eta = np.max(delta_etaTs)
-      min_phi = np.min(delta_phiTs)
-      max_phi = np.max(delta_phiTs)
-      min_z = np.min(delta_zTs)
-      max_z = np.max(delta_zTs)
-
-      fTsM_g3D.append(np.array([np.histogramdd(rel_pos, bins=bins,range=[[min_eta,max_eta],[min_phi,max_phi], [min_z, max_z]])[0],
-                          np.histogramdd(rel_pos, weights=np.asarray(raw_enTs[i][mTs]), bins=bins, range=[[min_eta,max_eta],[min_phi,max_phi], [min_z, max_z]])[0]]))
-      fTsM_pos.append(rel_pos)
-      '''
-      vtxIds = ak.flatten(vtxIdTs[i][mTs])
-      betaClsInTs = betaCls[i][vtxIds]
-      bphiClsInTs = bphiCls[i][vtxIds]
-      bzClsInTs = bzCls[i][vtxIds]
-
-      betaCls_mean = np.mean(betaClsInTs)
-      delta_etaCls = betaClsInTs - betaCls_mean
-      bzCls_mean = np.mean(bzClsInTs)
-      delta_zCls = bzClsInTs - bzCls_mean
-
-      delta_phiCls, bphiCls_mean = get_delta_phi(bphiClsInTs)
-
-      rel_pos_cls = np.array([delta_etaCls, delta_phiCls, delta_zCls]).T
-
-      min_eta = np.min(delta_etaCls)
-      max_eta = np.max(delta_etaCls)
-      min_phi = np.min(delta_phiCls)
-      max_phi = np.max(delta_phiCls)
-      min_z = np.min(delta_zCls)
-      max_z = np.max(delta_zCls)
-
-      if DEBUG:
-        print(rel_pos)
-        print(raw_enTs[i][mTs])
-      fTsM_g3D.append(np.array([np.histogramdd(rel_pos_cls, bins=bins,range=[[min_eta,max_eta],[min_phi,max_phi], [min_z, max_z]])[0],
-                          np.histogramdd(rel_pos_cls, weights=np.asarray(corrected_enCls[i][vtxIds]), bins=bins, range=[[min_eta,max_eta],[min_phi,max_phi], [min_z, max_z]])[0]], dtype= np.int16))
-      '''
-      #fTsM_g3D.append(np.array([np.histogramdd(rel_pos_cls, bins=bins,range=[[min_abseta,max_abseta],[min_phi,max_phi], [min_z, max_z]])[0],
-      #                    np.histogramdd(rel_pos_cls, weights=np.asarray(raw_enTs[i][mTs]), bins=bins, range=[[min_abseta,max_abseta],[min_phi,max_phi], [min_z, max_z]])[0]]))
-      fTsM_1D.append(np.array([betaTs_mean, bphiTs_mean, bzTs_mean]))
-      deltaTsM_1D.append(np.array([delta_etaTs, delta_phiTs, delta_zTs]))
-      if DEBUG:
-        print(bxTs[i][mTs])
-        bxTs[i][mTs]
-      '''
-      for k, ts in enumerate(bxTs[i][mTs]): #looping over the tracksters in every mergedTracksters
-        print(ts)
-        #print(tErrTs[mTs][k] > -0.5) # IMPORTANT: not to ignore the trackster with negative time error.
-        #print(ts[tErrTs[mTs][k] > -0.5])
-      '''
-      #Probably I can use ravel and unravel when writing and reading.
-      ###################################
-      ## Defition of the target
-      ##################################
-      max_score_r2s = 0.35
-      min_energy_r2s = 0.5
-      #isPass = ((recoToSim_score[i][j] < max_score_r2s) & (recoToSim_en[i][j] > min_energy_r2s))
-      isPassScore = recoToSim_score[i][j] < max_score_r2s 
-      #en_frac = recoToSim_en[i][j][isPassScore]/simTICLCandidate_regressed_energy[i][recoToSim_index[i][j][isPassScore]]
-      en_frac = recoToSim_en[i][j][isPassScore]/simTICLCandidate_raw_energy[i][recoToSim_index[i][j][isPassScore]]
-
-
-      isPass = False
-      if np.any(en_frac > 0.5):
-        isPass = True
-      tTsM.append(isPass)
-  fTsM_pos = fTsM_pos.snapshot()
-
-  fTsM_g3D = fTsM_g3D.snapshot()
-  fTsM_1D = fTsM_1D.snapshot()
-  deltaTsM_1D = deltaTsM_1D.snapshot()
-  tTsM = tTsM.snapshot()
-  form, lenght, container = ak.to_buffers(fTsM_g3D)
-  ak.to_parquet(fTsM_g3D, f"data/{suf}_grid_3D.parquet")
-  form_, lenght_, container_ = ak.to_buffers(fTsM_1D)
-  ak.to_parquet(fTsM_1D, f"data/{suf}_fTsM_1D.parquet")
-  form_1, lenght_1, container_1 = ak.to_buffers(deltaTsM_1D)
-  ak.to_parquet(deltaTsM_1D, f"data/{suf}_deltaTsM_1D.parquet")
-  form_2, lenght_2, container_2 = ak.to_buffers(tTsM)
-  ak.to_parquet(tTsM, f"data/{suf}_tTsM.parquet")
-  form_3, lenght_3, container_3 = ak.to_buffers(fTsM_g3D)
-  ak.to_parquet(fTsM_pos, f"data/{suf}_point_cloud.parquet")
-
-  print(f"tTsM.type: { tTsM.type}")
-  print(f"len(tTsM): { len(tTsM)}")
-  print(f"np.sum(tTsM): { np.sum(tTsM)}")
-
-  if DOPLOTS:
-    print("####################")
-    print("if this does not work is probably because we don't have enough TICLCandidate passing the energy cut")
-    print("####################")
-    vox_in = (np.array(fTsM_g3D)[tTsM,0,:,:,:] > 0).astype(np.int32)
-    fig = plt.figure(figsize=(30,30), dpi=200)
-    for sp in range(1,26,1):
-      ax = fig.add_subplot(5,5,sp, projection='3d')
-      #ax = fig.gca( projection='3d')
-      vox = vox_in[sp]
-      print(sp)
-      print(vox)
-      ax.voxels(vox, shade=True, alpha=0.45)
-    plt.savefig("voxel_test.png")
-    plt.clf()
-
-  return deltaTsM_1D, fTsM_1D, fTsM_g3D, fTsM_pos, tTsM
 
 def plot_vars(deltaTsM_1D, fTsM_1D, fTsM_g3D, tTsM, suf):
     myhist(ak.flatten(deltaTsM_1D[:,0], axis=None), title="Delta_eta", xlabel="eta-eta_mean for TsM", ylabel="Counts/bin", bins=45, label=suf)
