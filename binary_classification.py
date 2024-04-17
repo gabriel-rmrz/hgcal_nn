@@ -30,14 +30,14 @@ def cnn_model2(input_shape):
   voxel_input = Input(shape=input_shape, name="voxel_grid")
   x = layers.Conv3D(8, (3,3,3), padding='valid', activation="relu")(voxel_input)
   x = layers.MaxPooling3D((2,2,2))(x)
-  x = layers.Conv3D(8, (3,3,3), padding='valid', activation="relu")(x)
+  x = layers.Conv3D(16, (3,3,3), padding='valid', activation="relu")(x)
   x = layers.MaxPooling3D((2,2,2))(x)
   x = layers.Flatten()(x)
 
   scalar_input = Input(shape=(3,), name="scalar_features")
-  y = layers.Dense(8, activation="relu")(scalar_input)
+  y = layers.Dense(16, activation="relu")(scalar_input)
   combined = layers.concatenate([x,y])
-  z = layers.Dense(16, activation="relu")(combined)
+  z = layers.Dense(32, activation="relu")(combined)
   output = layers.Dense(1, activation="sigmoid")(z)
 
   model = models.Model(inputs=[voxel_input, scalar_input], outputs=output)
@@ -72,11 +72,12 @@ def main():
   #target_file='data/4Pions_0PU_tTsM.parquet'
   #features_1D_file ='data/4Pions_0PU_fTsM_1D.parquet'
   #features_3D_file ='data/4Pions_0PU_grid_3D.parquet'
-  #prefix = "4Pions_0PU"
-  prefix = "4Photons_0PU"
+  prefix = "4Pions_0PU"
+  #prefix = "4Photons_0PU"
   target_file=f"data/{prefix}_tTsM.parquet"
   features_1D_file =f"data/{prefix}_fTsM_1D.parquet"
-  features_3D_file =f"data/{prefix}_grid_3D.parquet"
+  #features_3D_file =f"data/{prefix}_grid_3D.parquet"
+  features_3D_file =f"data/{prefix}_grid_3D_cls.parquet"
   tTsM = load_fromParquet(target_file)
   fTsM_1D = load_fromParquet(features_1D_file)
   fTsM_3D = load_fromParquet(features_3D_file)
@@ -85,6 +86,12 @@ def main():
   fTsM_3D = np.asarray(fTsM_3D)
   fTsM_3D = np.asarray(fTsM_3D)
   fTsM_3D = np.transpose(fTsM_3D, [0,2,3,4,1])
+  '''
+  for f3D in fTsM_3D[:,:,:,:,0]:
+    suma = sum(ak.flatten(f3D, axis=None))
+    if suma>1:
+      print(suma)
+  '''
   
   #fTsM_3D = fTsM_3D[:,:,:,:,0]
   input_3D_shape = (12, 12, 12,2)
@@ -124,21 +131,20 @@ def main():
   print(history.history['accuracy'])
   '''
 
-  thr = int(.8*len(tTsM))
+  thr = int(.6*len(tTsM))
   thr2=-1
   #thr = 100
   #thr2 = 200
 
   print(f"1-sum(tTsM[:thr])/len(tTsM[:thr]): {1-sum(tTsM[:thr])/len(tTsM[:thr])}")
   print(f"1-sum(tTsM[thr:thr2])/len(tTsM[thr:thr2]): {1-sum(tTsM[thr:thr2])/len(tTsM[thr:thr2])}")
-  exit()
   model2 = cnn_model2(input_3D_shape)
   model2.summary()
   history2 = model2.fit(
       [fTsM_3D[:thr], fTsM_1D[:thr]], tTsM[:thr],
       validation_data=([fTsM_3D[thr:thr2], fTsM_1D[thr:thr2]], tTsM[thr:thr2]),
-      epochs= 10,
-      batch_size= 12
+      epochs= 20,
+      batch_size= 32
       )
   plt.plot(history2.history['accuracy'], label="training")
   plt.plot(history2.history['val_accuracy'], label="validation")
