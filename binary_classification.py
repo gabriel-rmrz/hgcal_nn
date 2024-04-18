@@ -3,6 +3,7 @@ import awkward as ak
 import tensorflow as tf
 from tensorflow.keras import layers, models, Input
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 
 
@@ -28,16 +29,16 @@ def cnn_model(input_shape):
 def cnn_model2(input_shape):
   tf.keras.backend.clear_session()
   voxel_input = Input(shape=input_shape, name="voxel_grid")
-  x = layers.Conv3D(8, (3,3,3), padding='valid', activation="relu")(voxel_input)
+  x = layers.Conv3D(4, (3,3,3), padding='valid', activation="relu")(voxel_input)
   x = layers.MaxPooling3D((2,2,2))(x)
-  x = layers.Conv3D(16, (3,3,3), padding='valid', activation="relu")(x)
+  x = layers.Conv3D(8, (3,3,3), padding='valid', activation="relu")(x)
   x = layers.MaxPooling3D((2,2,2))(x)
   x = layers.Flatten()(x)
 
   scalar_input = Input(shape=(3,), name="scalar_features")
-  y = layers.Dense(16, activation="relu")(scalar_input)
+  y = layers.Dense(8, activation="relu")(scalar_input)
   combined = layers.concatenate([x,y])
-  z = layers.Dense(32, activation="relu")(combined)
+  z = layers.Dense(16, activation="relu")(combined)
   output = layers.Dense(1, activation="sigmoid")(z)
 
   model = models.Model(inputs=[voxel_input, scalar_input], outputs=output)
@@ -76,8 +77,8 @@ def main():
   #prefix = "4Photons_0PU"
   target_file=f"data/{prefix}_tTsM.parquet"
   features_1D_file =f"data/{prefix}_fTsM_1D.parquet"
-  #features_3D_file =f"data/{prefix}_grid_3D.parquet"
-  features_3D_file =f"data/{prefix}_grid_3D_cls.parquet"
+  features_3D_file =f"data/{prefix}_grid_3D.parquet"
+  #features_3D_file =f"data/{prefix}_grid_3D_cls.parquet"
   tTsM = load_fromParquet(target_file)
   fTsM_1D = load_fromParquet(features_1D_file)
   fTsM_3D = load_fromParquet(features_3D_file)
@@ -131,20 +132,32 @@ def main():
   print(history.history['accuracy'])
   '''
 
-  thr = int(.6*len(tTsM))
+  thr = int(.8*len(tTsM))
   thr2=-1
-  #thr = 100
-  #thr2 = 200
 
-  print(f"1-sum(tTsM[:thr])/len(tTsM[:thr]): {1-sum(tTsM[:thr])/len(tTsM[:thr])}")
-  print(f"1-sum(tTsM[thr:thr2])/len(tTsM[thr:thr2]): {1-sum(tTsM[thr:thr2])/len(tTsM[thr:thr2])}")
+  grid_train, grid_test_val, pos_train, pos_test_val, truth_train, truth_test_val = train_test_split(
+      fTsM_3D, fTsM_1D, tTsM,
+      test_size=0.2,
+      random_state=4,
+      stratify=tTsM)
+
+  grid_val, grid_test, pos_val, pos_test, truth_val, truth_test = train_test_split(
+      grid_test_val, pos_test_val, truth_test_val,
+      test_size = 0.25,
+      random_state=5,
+      stratify=truth_test_val)
+
+  #print(f"1-sum(tTsM[:thr])/len(tTsM[:thr]): {1-sum(tTsM[:thr])/len(tTsM[:thr])}")
+  #print(f"1-sum(tTsM[thr:thr2])/len(tTsM[thr:thr2]): {1-sum(tTsM[thr:thr2])/len(tTsM[thr:thr2])}")
+  print(f"1-sum(truth_test_val)/len(truth_test_val): {1-sum(truth_test_val)/len(truth_test_val)}")
+  print(f"1-sum(truth_train)/len(truth_train): {1-sum(truth_train)/len(truth_train)}")
   model2 = cnn_model2(input_3D_shape)
   model2.summary()
   history2 = model2.fit(
-      [fTsM_3D[:thr], fTsM_1D[:thr]], tTsM[:thr],
-      validation_data=([fTsM_3D[thr:thr2], fTsM_1D[thr:thr2]], tTsM[thr:thr2]),
+      [grid_train, pos_train], truth_train,
+      validation_data=([grid_val, pos_val], truth_val),
       epochs= 20,
-      batch_size= 32
+      batch_size= 1
       )
   plt.plot(history2.history['accuracy'], label="training")
   plt.plot(history2.history['val_accuracy'], label="validation")

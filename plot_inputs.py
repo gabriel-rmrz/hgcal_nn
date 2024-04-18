@@ -26,6 +26,7 @@ def myhistWithGauss(X, bins=30, title='title', xlabel='time (ns)', ylabel='Count
   myhist(X, title=title, xlabel=xlabel, ylabel=ylabel, bins=bins, range=range, label=label)
   plt.plot(x1, fit_y, '-', label='fit', color='red')
   plt.legend()
+  print(f"p1 fot {title}: {p1}")
 
 def plot_vars(deltaTsM_1D, fTsM_1D, fTsM_g3D, tTsM, suf):
   myhistWithGauss(ak.flatten(deltaTsM_1D[:,0], axis=None), title="Delta_eta", xlabel="eta-eta_mean for TsM", ylabel="Counts/bin", bins=45, range=(-.2,.2), label=suf)
