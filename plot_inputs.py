@@ -53,13 +53,13 @@ def plot_vars(deltaTsM_1D, fTsM_1D, fTsM_g3D, tTsM, suf):
   print(f"deltaTsM_1D[0,0,:].type:{deltaTsM_1D[0,0,:].type}")
   print(f"ak.flatten(deltaTsM_1D[:,:,0]):{ak.flatten(deltaTsM_1D[:,:,0])}")
   print(f"len(ak.flatten(deltaTsM_1D[:,:,0])):{len(ak.flatten(deltaTsM_1D[:,:,0]))}")
-  myhistWithGauss(ak.flatten(deltaTsM_1D[:,:,0], axis=None), title="Delta_eta", xlabel="eta-eta_mean for TsM", ylabel="Counts/bin", bins=100, range=(-1,1), label=suf)
-  plt.savefig(f"plots/{suf}_val_delta_eta_withGauss.png")
+  myhistWithGauss(ak.flatten(deltaTsM_1D[:,:,0], axis=None), title="Delta_eta", xlabel="x-x_mean for TsM", ylabel="Counts/bin", bins=100, range=(-40,40), label=suf)
+  plt.savefig(f"plots/{suf}_val_delta_x_withGauss.png")
   plt.clf()
-  myhistWithGauss(ak.flatten(deltaTsM_1D[:,:,1], axis=None), title="Delta_phi", xlabel="phi-phi_mean for TsM", ylabel="Counts/bin", bins=100, range=(-1,1), label=suf)
-  plt.savefig(f"plots/{suf}_val_delta_phi_withGauss.png")
+  myhistWithGauss(ak.flatten(deltaTsM_1D[:,:,1], axis=None), title="Delta_x", xlabel="x-x_mean for TsM", ylabel="Counts/bin", bins=100, range=(-40,40), label=suf)
+  plt.savefig(f"plots/{suf}_val_delta_y_withGauss.png")
   plt.clf()
-  myhistWithGauss(ak.flatten(deltaTsM_1D[:,:,2], axis=None), title="Delta_z", xlabel="z-z_mean for TsM", ylabel="Counts/bin", bins=100, label=suf)
+  myhistWithGauss(ak.flatten(deltaTsM_1D[:,:,2], axis=None), title="Delta_z", xlabel="z-z_mean for TsM", ylabel="Counts/bin", bins=300, range=(-40,40),label=suf)
   plt.savefig(f"plots/{suf}_val_delta_z_withGauss.png")
   plt.clf()
 
@@ -69,8 +69,8 @@ def load_fromParquet(filename):
 
 def main():
   #prefix = "SinglePi"
-  #prefix = "4Photons_0PU"
-  prefix = "4Pions_0PU"
+  prefix = "4Photons_0PU"
+  #prefix = "4Pions_0PU"
   target_file=f"data/{prefix}_tTsM.parquet"
   delta_file = f"data/{prefix}_deltaTsM_1D_cls.parquet"
   features_1D_file =f"data/{prefix}_fTsM_1D.parquet"

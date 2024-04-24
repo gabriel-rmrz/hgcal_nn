@@ -1,5 +1,5 @@
 DEBUG=False
-DOPLOTS=False
+DOPLOTS=True
 import awkward as ak
 import numpy as np
 import uproot as uproot
@@ -59,6 +59,12 @@ def get_limits_gauss(X):
   #fit_y = Gauss(x1, p1[0], p1[1])
   return p1
 
+def save_array_to_file(arr_builder, filename):
+  arr = arr_builder.snapshot()
+  form, lenght, container = ak.to_buffers(arr)
+  ak.to_parquet(arr, f"data/{filename}")
+  return arr
+
 
 def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
   print(f"Reading {filename}...")
@@ -66,7 +72,8 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
 
   simtrackstersSC = file["ticlDumper/simtrackstersSC"]
   simtrackstersCP = file["ticlDumper/simtrackstersCP"]
-  tracksters = file["ticlDumper/tracksters"]
+  #tracksters = file["ticlDumper/tracksters"]
+  tracksters = file["ticlDumper/linkedTracksters"]
   trackstersMerged = file["ticlDumper/trackstersMerged"]
   associations = file["ticlDumper/associations"]
   clusters = file["ticlDumper/clusters"]
@@ -79,6 +86,7 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
 
   tErrTs = tracksters["timeError"].array()
   bxTs = tracksters["barycenter_x"].array()
+  byTs = tracksters["barycenter_y"].array()
   bzTs = tracksters["barycenter_z"].array()
   betaTs = tracksters["barycenter_eta"].array()
   bphiTs = tracksters["barycenter_phi"].array()
@@ -88,12 +96,11 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
   vtxIdTs = tracksters["vertices_indexes"].array()
   betaCls = clusters["position_eta"].array()
   bphiCls = clusters["position_phi"].array()
+  bxCls = clusters["position_x"].array()
+  byCls = clusters["position_y"].array()
   bzCls = clusters["position_z"].array()
-  corrected_enCls = clusters["correctedEnergy"].array()
-
-  betaCls = clusters["position_eta"].array()
-  bphiCls = clusters["position_phi"].array()
-  bzCls = clusters["position_z"].array()
+  #corrected_enCls = clusters["correctedEnergy"].array()
+  enCls = clusters["energy"].array()
 
   recoToSim_en = associations["Mergetracksters_recoToSim_CP_sharedE"].array()
   recoToSim_score = associations["Mergetracksters_recoToSim_CP_score"].array()
@@ -110,17 +117,26 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
   fTsM_en = ak.ArrayBuilder()
   fTsM_en_cls= ak.ArrayBuilder()
   fTsM_g3D = ak.ArrayBuilder()
+  fTsM_tiles = ak.ArrayBuilder()
   fTsM_pos = ak.ArrayBuilder()
+  fTsM_eta_phi = ak.ArrayBuilder()
   fTsM_1D = ak.ArrayBuilder()
+  fTsM_1D_cls = ak.ArrayBuilder()
   deltaTsM_1D = ak.ArrayBuilder()
   deltaTsM_1D_cls = ak.ArrayBuilder()
+  deltaTsM_eta_phi_z_1D = ak.ArrayBuilder()
+  deltaTsM_eta_phi_z_1D_cls = ak.ArrayBuilder()
   #target_perTracksterMerged
   fTsM_pos_cls = ak.ArrayBuilder()
+  fTsM_eta_phi_cls = ak.ArrayBuilder()
   fTsM_g3D_cls = ak.ArrayBuilder()
   tTsM = ak.ArrayBuilder()
+  tTsM_out = ak.ArrayBuilder()
+  ev_info =  ak.ArrayBuilder()
+
 
   for i, ev in enumerate(simToReco_index): # looping over all the events
-  #for i, ev in enumerate(simToReco_index[:101]): # looping over all the events
+  #for i, ev in enumerate(simToReco_index[:601]): # looping over all the events
     if not (i%100) :
       print(f"%%%%%%%%%%%%%%% Event {i} %%%%%%%%%%%%%%%")
     isPassScore0 =simToReco_score[i] < 0.35
@@ -131,48 +147,35 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
     max_i = np.argmax(en_ratio)
     s = ev[isPassScore0]
     s = s[max_i]
-
     j = max_i
-
     mTs = tsLinkedInCand[i][s]
     mTs_en = simToReco_en[i][j]
     mTs = ak.flatten(tsLinkedInCand[i][s])
     #print(f"mTs: {mTs}")
     if len(mTs)==0:
       continue
+    ev_info.append(np.array([i,max_i]))
 
     ###################################
     ## Defition of the inputs
-    glob_pos = np.array([betaTs[i][mTs], bphiTs[i][mTs], bzTs[i][mTs]])
-    '''
-    print(f"glob_pos: {glob_pos}")
-    print(f"glob_pos.shape: {glob_pos.shape}")
-    print(f"glob_pos.T: {glob_pos.T}")
-    '''
+    glob_pos = np.array([bxTs[i][mTs], byTs[i][mTs], bzTs[i][mTs]])
+    glob_eta_phi = np.array([betaTs[i][mTs], bphiTs[i][mTs]])
 
     vtxIds = ak.flatten(vtxIdTs[i][mTs])
     betaClsInTs = betaCls[i][vtxIds]
     bphiClsInTs = bphiCls[i][vtxIds]
+    bxClsInTs = bxCls[i][vtxIds]
+    byClsInTs = byCls[i][vtxIds]
     bzClsInTs = bzCls[i][vtxIds]
-    '''
-    print(f"mTs: {mTs}")
-    print(f"vtxIds: {vtxIds}")
-    print(f"betaClsInTs: {betaClsInTs}")
-    print(f"bphiClsInTs: {bphiClsInTs}")
-    print(f"bzClsInTs: {bzClsInTs}")
-    '''
-    glob_pos_cls = np.array([betaClsInTs, bphiClsInTs, bzClsInTs])
-
-    '''
-    print(f"glob_pos_cls: {glob_pos_cls}")
-    print(f"glob_pos_cls.shape: {glob_pos_cls.shape}")
-    print(f"glob_pos_cls.T: {glob_pos_cls.T}")
-    '''
+    glob_pos_cls = np.array([bxClsInTs, byClsInTs, bzClsInTs])
+    glob_eta_phi_cls = np.array([betaClsInTs, bphiClsInTs])
 
     fTsM_pos_cls.append(glob_pos_cls)
+    fTsM_eta_phi_cls.append(glob_eta_phi_cls)
     fTsM_pos.append(glob_pos)
+    fTsM_eta_phi.append(glob_eta_phi)
     fTsM_en.append(raw_enTs[i][mTs])
-    fTsM_en_cls.append(corrected_enCls[i][vtxIds])
+    fTsM_en_cls.append(enCls[i][vtxIds])
 
     ###################################
     ## Defition of the target
@@ -190,145 +193,188 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
       isPass = True
     tTsM.append(isPass)
 
-  fTsM_en = fTsM_en.snapshot()
-  fTsM_en_cls = fTsM_en_cls.snapshot()
-  fTsM_pos = fTsM_pos.snapshot()
-  fTsM_pos_cls = fTsM_pos_cls.snapshot()
+  ev_info = ev_info.snapshot()
+  fTsM_en = save_array_to_file(fTsM_en, f"{suf}_en.parquet")
+  fTsM_en_cls = save_array_to_file(fTsM_en_cls, f"{suf}_en_cls.parquet")
+  fTsM_pos = save_array_to_file(fTsM_pos, f"{suf}_pos.parquet")
+  fTsM_eta_phi = save_array_to_file(fTsM_eta_phi, f"{suf}_eta_phi.parquet")
+  fTsM_pos_cls = save_array_to_file(fTsM_pos_cls, f"{suf}_pos_cls.parquet")
+  fTsM_eta_phi_cls = save_array_to_file(fTsM_eta_phi_cls, f"{suf}_eta_phi_cls.parquet")
+  #tTsM = save_array_to_file(tTsM, f"{suf}_tTsM.parquet")
   tTsM = tTsM.snapshot()
-  form_2, lenght_2, container_2 = ak.to_buffers(tTsM)
-  ak.to_parquet(tTsM, f"data/{suf}_tTsM.parquet")
-  form_4, lenght_4, container_4 = ak.to_buffers(fTsM_pos_cls)
-  ak.to_parquet(fTsM_pos_cls, f"data/{suf}_pos_cls.parquet")
-  form_5, lenght_5, container_5 = ak.to_buffers(fTsM_pos)
-  ak.to_parquet(fTsM_pos, f"data/{suf}_pos.parquet")
 
   # TODO: Add pos_tsM to the loop
 
-  print(fTsM_pos_cls[0,0,:].type)
+  z_layers = np.array([322, 323, 325, 326, 328, 329, 331, 332, 334, 335, 337, 338, 340,341, 343, 344, 346, 347, 349, 350, 353, 354, 356, 357, 360, 361,
+                  367, 374, 380, 386, 393, 399, 405, 411, 412, 418, 424, 430, 431, 439, 447, 455, 463, 471, 472, 480, 488, 496, 504, 505, 513], dtype=np.int32)
   for i in range(len(fTsM_pos)):
     if not (i%100) :
       print(f"%%%%%%%%%%%%%%% Candidate {i} %%%%%%%%%%%%%%%")
     pos_ts = fTsM_pos[i,:,:]
-    pos_cls = fTsM_pos_cls[i,:,:]
+    eta_phi_ts = fTsM_eta_phi[i,:,:]
+    pos_cls = np.asarray(fTsM_pos_cls[i,:,:])
+    pos_cls[2,:] = np.absolute(pos_cls[2,:])
+    eta_phi_cls = fTsM_eta_phi_cls[i,:,:]
     en_ts = fTsM_en[i]
     en_cls = fTsM_en_cls[i]
-    betaTs_mean = np.mean(pos_ts[0,:])
-    delta_etaTs = pos_ts[0,:] - betaTs_mean
+    betaTs_mean = np.mean(eta_phi_ts[0,:])
+    delta_etaTs = eta_phi_ts[0,:] - betaTs_mean
+    bxTs_mean = np.mean(pos_ts[0,:])
+    delta_xTs = pos_ts[0,:] - bxTs_mean
+    byTs_mean = np.mean(pos_ts[1,:])
+    delta_yTs = pos_ts[1,:] - byTs_mean
     bzTs_mean = np.mean(pos_ts[2,:])
     delta_zTs = pos_ts[2,:] - bzTs_mean
-    delta_phiTs, bphiTs_mean = get_delta_phi(pos_ts[1,:])
-    #print(f"pos_ts[0,:] : {pos_ts[0,:]}")
-    #print(f"pos_cls[0,:] : {pos_cls[0,:]}")
+    delta_phiTs, bphiTs_mean = get_delta_phi(eta_phi_ts[1,:])
     #TODO: Check the 1.1 factor for the mins.
 
-    rel_pos = np.array([delta_etaTs, delta_phiTs, delta_zTs]).T
+    rel_pos = np.array([delta_xTs, delta_yTs, delta_zTs]).T
+    rel_eta_phi_z = np.array([delta_etaTs, delta_phiTs, delta_zTs]).T
 
-    fT = np.array([betaTs_mean, bphiTs_mean, bzTs_mean])
-
-    fTsM_1D.append(np.array([betaTs_mean, bphiTs_mean, bzTs_mean]))
-    #deltaTsM_1D.append(rel_pos)
-    deltaTsM_1D.append(rel_pos)
-
-    betaCls_mean = np.mean(pos_cls[0,:])
-    delta_etaCls = pos_cls[0,:] - betaCls_mean
+    betaCls_mean = np.mean(eta_phi_cls[0,:])
+    delta_etaCls = eta_phi_cls[0,:] - betaCls_mean
+    bxCls_mean = np.mean(pos_cls[0,:])
+    delta_xCls = pos_cls[0,:] - bxCls_mean
+    byCls_mean = np.mean(pos_cls[1,:])
+    delta_yCls = pos_cls[1,:] - byCls_mean
     bzCls_mean = np.mean(pos_cls[2,:])
+    #delta_zCls = pos_cls[2,:] - z_layers[bzCls_mean_layer] #bzCls_mean
     delta_zCls = pos_cls[2,:] - bzCls_mean
 
-    delta_phiCls, bphiCls_mean = get_delta_phi(pos_cls[1,:])
+    delta_phiCls, bphiCls_mean = get_delta_phi(eta_phi_cls[1,:])
 
-    rel_pos_cls = np.array([delta_etaCls, delta_phiCls, delta_zCls]).T
+    rel_pos_cls = np.array([delta_xCls, delta_yCls, delta_zCls]).T
+    rel_eta_phi_z_cls = np.array([delta_etaCls, delta_phiCls, delta_zCls]).T
+
+    #range_grid= [[-25,25], [-25,25],[-5,5]]
+    '''
+    nbins_x = 6 # Use a pair number
+    nbins_y = 6 # Use a pair number
+    nbins_z = 10 # Use a pair number
+    xy_bins_width = 5.
+    '''
+    nbins_x = 24 # Use a pair number
+    nbins_y = 24 # Use a pair number
+    nbins_z = 16 # Use a pair number
+    xy_bins_width = 1.
+    bxCls_mean_tile = xy_bins_width *(bxCls_mean//xy_bins_width)
+    bins_x = np.arange(bxCls_mean_tile-xy_bins_width*nbins_x/2, bxCls_mean_tile + xy_bins_width*(nbins_x/2+1), xy_bins_width)
+    byCls_mean_tile = xy_bins_width *(byCls_mean//xy_bins_width)
+    bins_y = np.arange(byCls_mean_tile -xy_bins_width*nbins_y/2, byCls_mean_tile + xy_bins_width*(nbins_y/2+1), xy_bins_width)
+    bzCls_mean_tile_arg = np.absolute(bzCls_mean-z_layers).argmin()
+    bins_z = np.zeros(nbins_z+1, dtype=np.double)
+    if (bzCls_mean_tile_arg < int(nbins_z/2)):
+      for m, j in enumerate(np.arange(bzCls_mean_tile_arg-int(nbins_z/2),0,1)):
+        bins_z[m] = z_layers[0] +j -.5
+      for k, l in enumerate(np.arange(0,bzCls_mean_tile_arg+int(nbins_z/2)+1,1)):
+        bins_z[l- bzCls_mean_tile_arg+int(nbins_z/2)] = z_layers[k] -.5
+    elif bzCls_mean_tile_arg+(nbins_z/2) >= (len(z_layers) ):
+      for m, j in enumerate(np.arange(bzCls_mean_tile_arg-int(nbins_z/2),len(z_layers),1)):
+        bins_z[m] = z_layers[j] -.5
+      for k, l in enumerate(np.arange(len(z_layers)-bzCls_mean_tile_arg+int(nbins_z/2),nbins_z+1,1)):
+        bins_z[l] = z_layers[-1] +k+1  -.5
+    else:
+      bins_z = z_layers[np.arange(bzCls_mean_tile_arg-int(nbins_z/2), bzCls_mean_tile_arg+int(nbins_z/2)+1, 1)] -.5
+
+
+        
+
+    #print(f"bxCls_mean_tile: {bxCls_mean_tile}")
+    #print(f"bins_x: {bins_x}")
+    #range_grid_cls= [[-25,25], [-25,25],[-25.,25.]]
+    bins = (bins_x, bins_y, bins_z)
+    '''
+    # For eta-phi-z constant ranges
+    range_grid= [[-0.4,0.4], [-0.4,0.4],[-25.,25.]]
+    range_grid_cls= [[-0.4,0.4], [-0.4,0.4],[-25.,25.]]
+    range_grid = [[np.min(delta_etaTs), np.max(delta_etaTs)], 
+                  [np.min(delta_phiTs), np.max(delta_phiTs)],
+                  [np.min(delta_zTs),  np.max(delta_zTs)]]
+    # For eta-phi-z dinamic ranges
+    range_grid_cls = [[ np.min(delta_etaCls), np.max(delta_etaCls)],
+                  [np.min(delta_phiCls), np.max(delta_phiCls)],
+                  [np.min(delta_zCls), np.max(delta_zCls)]]
+    '''
+
+    #fTsM_g3D.append(np.array([np.histogramdd(pos_cls, bins=bins)[0], np.histogramdd(pos_cls, weights=np.asarray(en_ts), bins=bins)[0]]))
+    pos_cls = pos_cls.T
+    histo_pos = np.histogramdd(pos_cls, bins=bins)[0]
+    histo_en = np.histogramdd(pos_cls, weights=np.asarray(en_cls), bins=bins)[0]
+    if np.sum(histo_pos, axis=None) ==0:
+      print("******* empty ********")
+      print(f"ev_info[i]: {ev_info[i]}")
+      print(f"bins_x: {bins_x}")
+      print(f"bins_y: {bins_y}")
+      print(f"bins_z: {bins_z}")
+      print(f"pos_cls: {pos_cls}")
+      #print(f"histo_pos: {histo_pos}")
+      #print(f"z_layers[bzCls_mean_tile_arg]: {z_layers[bzCls_mean_tile_arg]}")
+      #print(f"pos_cls[:,2]: {pos_cls[:,2]}")
+      print(f"bzCls_mean: {bzCls_mean}")
+      continue
+    fTsM_1D.append(np.array([bxTs_mean, byTs_mean, bzTs_mean]))
+    fTsM_1D_cls.append(np.array([bxCls_mean, byCls_mean, bzCls_mean]))
     deltaTsM_1D_cls.append(rel_pos_cls)
+    #deltaTsM_eta_phi_z_1D_cls.append(rel_eta_phi_z_cls)
 
-    '''
-    min_eta = np.min(delta_etaTs)
-    max_eta = np.max(delta_etaTs)
-    min_phi = np.min(delta_phiTs)
-    max_phi = np.max(delta_phiTs)
-    min_z = np.min(delta_zTs)
-    max_z = np.max(delta_zTs)
-    min_eta_cls = np.min(delta_etaCls)
-    max_eta_cls = np.max(delta_etaCls)
-    min_phi_cls = np.min(delta_phiCls)
-    max_phi_cls = np.max(delta_phiCls)
-    min_z_cls = np.min(delta_zCls)
-    max_z_cls = np.max(delta_zCls)
-    '''
+    #deltaTsM_1D.append(rel_pos)
+    tTsM_out.append(tTsM[i].item())
+    deltaTsM_1D.append(rel_pos)
+    deltaTsM_eta_phi_z_1D.append(rel_eta_phi_z)
+    fTsM_g3D_cls.append(np.array([histo_pos,histo_en]))
 
-    min_eta = -0.4
-    max_eta = 0.4
-    min_phi = -0.4
-    max_phi = 0.4
-    min_z = -25
-    max_z = 25
-    min_eta_cls = -0.4
-    max_eta_cls = 0.4
-    min_phi_cls = -0.4
-    max_phi_cls = 0.4
-    min_z_cls = -25
-    max_z_cls = 25
+  tTsM_out = save_array_to_file(tTsM_out, f"{suf}_tTsM.parquet")
+  fTsM_1D = save_array_to_file(fTsM_1D, f"{suf}_fTsM_1D.parquet")
+  fTsM_1D_cls = save_array_to_file(fTsM_1D_cls, f"{suf}_fTsM_1D_cls.parquet")
+  deltaTsM_1D = save_array_to_file(deltaTsM_1D, f"{suf}_deltaTsM_1D.parquet")
+  deltaTsM_1D_cls = save_array_to_file(deltaTsM_1D_cls, f"{suf}_deltaTsM_1D_cls.parquet")
+  #fTsM_g3D = save_array_to_file(fTsM_g3D, f"{suf}_grid_3D.parquet")
+  fTsM_g3D_cls = save_array_to_file(fTsM_g3D_cls, f"{suf}_grid_3D_cls.parquet")
 
-
-
-    fTsM_g3D.append(np.array([np.histogramdd(rel_pos, bins=bins,range=[[min_eta,max_eta],[min_phi,max_phi], [min_z, max_z]])[0],
-                        np.histogramdd(rel_pos, weights=np.asarray(en_ts), bins=bins, range=[[min_eta,max_eta],[min_phi,max_phi], [min_z, max_z]])[0]]))
-    fTsM_g3D_cls.append(np.array([np.histogramdd(rel_pos_cls, bins=bins,range=[[min_eta_cls,max_eta_cls],[min_phi_cls,max_phi_cls], [min_z_cls, max_z_cls]])[0],
-                        np.histogramdd(rel_pos_cls, weights=np.asarray(en_cls), bins=bins, range=[[min_eta_cls,max_eta_cls],[min_phi_cls,max_phi_cls], [min_z_cls, max_z_cls]])[0]], dtype= np.int16))
-
-  fTsM_1D = fTsM_1D.snapshot()
-  deltaTsM_1D = deltaTsM_1D.snapshot()
-  deltaTsM_1D_cls = deltaTsM_1D_cls.snapshot()
-  fTsM_g3D = fTsM_g3D.snapshot()
-  fTsM_g3D_cls = fTsM_g3D_cls.snapshot()
-  form, lenght, container = ak.to_buffers(fTsM_g3D)
-  ak.to_parquet(fTsM_g3D, f"data/{suf}_grid_3D.parquet")
-  form_3, lenght_3, container_3 = ak.to_buffers(fTsM_g3D_cls)
-  ak.to_parquet(fTsM_g3D_cls, f"data/{suf}_grid_3D_cls.parquet")
-  form_, lenght_, container_ = ak.to_buffers(fTsM_1D)
-  ak.to_parquet(fTsM_1D, f"data/{suf}_fTsM_1D.parquet")
-  form_1, lenght_1, container_1 = ak.to_buffers(deltaTsM_1D)
-  ak.to_parquet(deltaTsM_1D, f"data/{suf}_deltaTsM_1D.parquet")
-  form_7, lenght_7, container_7 = ak.to_buffers(deltaTsM_1D_cls)
-  ak.to_parquet(deltaTsM_1D_cls, f"data/{suf}_deltaTsM_1D_cls.parquet")
-
+  print(f"fTsM_g3D_cls.type: {fTsM_g3D_cls.type}")
+  print(f"tTsM_out.type: {tTsM_out.type}")
   if DOPLOTS:
+    vox_in = (np.array(fTsM_g3D_cls)[tTsM_out,0,:,:,:] > 0).astype(np.int32)
+    plot_voxels(vox_in)
+
+  return deltaTsM_1D, deltaTsM_1D_cls, fTsM_1D, fTsM_1D, fTsM_g3D, fTsM_g3D_cls, tTsM
+
+
+def plot_vars(deltaTsM_1D_cls, fTsM_1D, fTsM_g3D_cls, tTsM, suf):
+    myhist(ak.flatten(deltaTsM_1D_cls[:,:,0], axis=None), title="Delta_x_cls", xlabel="x-x_mean for TsM", ylabel="Counts/bin", bins=45, label=suf)
+    plt.savefig(f"plots/{suf}_val_delta_x.png")
+    plt.clf()
+    myhist(ak.flatten(deltaTsM_1D_cls[:,:,1], axis=None), title="Delta_y_cls", xlabel="y-y_mean for TsM", ylabel="Counts/bin", bins=45, label=suf)
+    plt.savefig(f"plots/{suf}_val_delta_y.png")
+    plt.clf()
+    myhist(ak.flatten(deltaTsM_1D_cls[:,:,2], axis=None), title="Delta_z_cls", xlabel="z-z_mean for TsM", ylabel="Counts/bin", bins=45, label=suf)
+    plt.savefig(f"plots/{suf}_val_delta_z.png")
+    plt.clf()
+
+    myhist(fTsM_1D[:,0], title="mean_x", xlabel="x_mean for clusters", ylabel="Counts/bin", bins=45, label=suf)
+    plt.savefig(f"plots/{suf}_val_mean_x.png")
+    plt.clf()
+    myhist(fTsM_1D[:,1], title="mean_y", xlabel="y_mean for clusters", ylabel="Counts/bin", bins=45, label=suf)
+    plt.savefig(f"plots/{suf}_val_mean_y.png")
+    plt.clf()
+    myhist(fTsM_1D[:,2], title="mean_z", xlabel="z_mean for clusters", ylabel="Counts/bin", bins=45, label=suf)
+    plt.savefig(f"plots/{suf}_val_mean_z.png")
+    plt.clf()
+    myhist(np.array(tTsM, dtype=np.int32), title="Truth: en>en_min and score < score_max", xlabel="Passed", ylabel="Counts/bin", bins=45, label=suf)
+    plt.savefig(f"plots/{suf}_val_truth.png")
+    plt.clf()
+
+def plot_voxels(vox_in):
     print("####################")
     print("if this does not work is probably because we don't have enough TICLCandidate passing the energy cut")
     print("####################")
-    vox_in = (np.array(fTsM_g3D_cls)[tTsM,0,:,:,:] > 0).astype(np.int32)
     fig = plt.figure(figsize=(30,30), dpi=200)
-    for sp in range(1,26,1):
-      ax = fig.add_subplot(5,5,sp, projection='3d')
+    for sp in range(1,50,1):
+      ax = fig.add_subplot(7,7,sp, projection='3d')
       #ax = fig.gca( projection='3d')
       vox = vox_in[sp]
       ax.voxels(vox, shade=True, alpha=0.45)
     plt.savefig("voxel_test.png")
-    plt.clf()
-
-  return deltaTsM_1D, deltaTsM_1D, fTsM_1D, fTsM_g3D, fTsM_g3D_cls, tTsM
-
-
-def plot_vars(deltaTsM_1D, fTsM_1D, fTsM_g3D, tTsM, suf):
-    myhist(ak.flatten(deltaTsM_1D[0,:], axis=None), title="Delta_eta", xlabel="eta-eta_mean for TsM", ylabel="Counts/bin", bins=45, label=suf)
-    plt.savefig(f"plots/{suf}_val_delta_eta.png")
-    plt.clf()
-    myhist(ak.flatten(deltaTsM_1D[1,:], axis=None), title="Delta_phi", xlabel="phi-phi_mean for TsM", ylabel="Counts/bin", bins=45, label=suf)
-    plt.savefig(f"plots/{suf}_val_delta_phi.png")
-    plt.clf()
-    myhist(ak.flatten(deltaTsM_1D[2,:], axis=None), title="Delta_z", xlabel="z-z_mean for TsM", ylabel="Counts/bin", bins=45, label=suf)
-    plt.savefig(f"plots/{suf}_val_delta_z.png")
-    plt.clf()
-
-    myhist(fTsM_1D[0,:], title="mean_eta", xlabel="eta_mean for TsM", ylabel="Counts/bin", bins=45, label=suf)
-    plt.savefig(f"plots/{suf}_val_mean_eta.png")
-    plt.clf()
-    myhist(fTsM_1D[1,:], title="mean_phi", xlabel="phi_mean for TsM", ylabel="Counts/bin", bins=45, label=suf)
-    plt.savefig(f"plots/{suf}_val_mean_phi.png")
-    plt.clf()
-    myhist(fTsM_1D[2,:], title="mean_z", xlabel="z_mean for TsM", ylabel="Counts/bin", bins=45, label=suf)
-    plt.savefig(f"plots/{suf}_val_mean_z.png")
-    plt.clf()
-    myhist(np.array(tTsM, dtype=np.int32), title="Truth: en>en_min and score < score_max", xlabel="Passed", ylabel="Counts/bin", bins=45, label=suf)
-    plt.savefig(f"plots/{suf}_val_delta_truth.png")
     plt.clf()
 
 def main():
@@ -361,10 +407,10 @@ def main():
   bins = [12,12,12]
   for suf in file_sufix:
     #deltaTsM_1D, fTsM_1D, fTsM_g3D, fTsM_pos, tTsM = prepare(f"data/histo_{suf}.root", suf, bins=bins, isPU=False)
-    deltaTsM_1D, deltaTsM_1D_cls, fTsM_1D, fTsM_g3D, fTsM_g3D_cls, tTsM = prepare_fromSim(f"data/histo_{suf}.root", suf, bins=bins, isPU=False)
+    deltaTsM_1D, deltaTsM_1D_cls, fTsM_1D, fTsM_1D_cls, fTsM_g3D, fTsM_g3D_cls, tTsM = prepare_fromSim(f"data/histo_{suf}.root", suf, bins=bins, isPU=False)
 
     if DOPLOTS:
-      plot_vars(deltaTsM_1D, fTsM_1D, fTsM_g3D, tTsM, suf)
+      plot_vars(deltaTsM_1D_cls, fTsM_1D, fTsM_g3D_cls, tTsM, suf)
 
       
       
