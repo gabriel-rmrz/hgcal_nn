@@ -7,6 +7,7 @@ from tensorflow.keras.metrics import Precision, Recall, F1Score
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
+import  cmsml
 def weighted_binary_crossentropy(y_true, y_pred):
   weights = (y_true * 1) + (1 - y_true) * 1.5  # Increase weight for negatives
   bce = K.binary_crossentropy(y_true, y_pred)
@@ -86,27 +87,6 @@ def load_fromParquet(filename):
 
 
 def main():
-  '''
-  data/4Photon_PU200_deltaTsM_1D.parquet  data/4Pion_PU200_grid_3D.parquet
-  data/4Photon_PU200_fTsM_1D.parquet      data/4Pion_PU200_tTsM.parquet
-  data/4Photon_PU200_grid_3D.parquet      data/4Pions_0PU_deltaTsM_1D.parquet
-  data/4Photon_PU200_tTsM.parquet         data/4Pions_0PU_fTsM_1D.parquet
-  data/4Photons_0PU_deltaTsM_1D.parquet   data/4Pions_0PU_grid_3D.parquet
-  data/4Photons_0PU_fTsM_1D.parquet       data/4Pions_0PU_tTsM.parquet
-  data/4Photons_0PU_grid_3D.parquet       data/SinglePi_deltaTsM_1D.parquet
-  data/4Photons_0PU_tTsM.parquet          data/SinglePi_fTsM_1D.parquet
-  data/4Pion_PU200_deltaTsM_1D.parquet    data/SinglePi_grid_3D.parquet
-  data/4Pion_PU200_fTsM_1D.parquet        data/SinglePi_tTsM.parquet
-  '''
-  #target_file='data/4Pion_PU200_tTsM.parquet'
-  #features_1D_file ='data/4Pion_PU200_fTsM_1D.parquet'
-  #features_3D_file ='data/4Pion_PU200_grid_3D.parquet'
-  #target_file='data/4Photon_PU200_tTsM.parquet'
-  #features_1D_file ='data/4Photon_PU200_fTsM_1D.parquet'
-  #features_3D_file ='data/4Photon_PU200_grid_3D.parquet'
-  #target_file='data/4Pions_0PU_tTsM.parquet'
-  #features_1D_file ='data/4Pions_0PU_fTsM_1D.parquet'
-  #features_3D_file ='data/4Pions_0PU_grid_3D.parquet'
   prefix = "4Pions_0PU"
   #prefix = "4Photons_0PU"
   target_file=f"data/{prefix}_tTsM.parquet"
@@ -197,6 +177,8 @@ def main():
       epochs= 50,
       batch_size= 32
       )
+
+  cmsml.tensorflow.save_graph("graph.pb", model2, variables_to_constants=True)
   '''
   model = cnn_model(input_3D_shape)
   model.summary()
