@@ -1,6 +1,8 @@
 import numpy as np
 import awkward as ak
 import tensorflow as tf
+import tf2onnx
+import onnx
 from tensorflow.keras import backend as K
 from tensorflow.keras import layers, models, Input, regularizers
 from tensorflow.keras.metrics import Precision, Recall, F1Score
@@ -73,7 +75,7 @@ def cnn_model2(input_shape):
   z = layers.Dropout(0.25)(combined)  # Dropout rate of 50%
   z = layers.Dense(32, activation="relu", kernel_regularizer=regularizers.l2(l2_lambda))(z)
   #z = layers.Dense(32, activation="relu")(z)
-  output = layers.Dense(1, activation="sigmoid")(z)
+  output = layers.Dense(1, activation="sigmoid", name="output")(z)
 
   model = models.Model(inputs=[voxel_input, scalar_input], outputs=output)
   #model.compile(optimizer='adam', loss=focal_loss(alpha=0.25, gamma=2.0), metrics=['accuracy', Precision(), Recall()])
@@ -174,11 +176,21 @@ def main():
   history2 = model2.fit(
       [grid_train, pos_train], truth_train,
       validation_data=([grid_val, pos_val], truth_val),
-      epochs= 50,
-      batch_size= 32
+      epochs= 1,
+      batch_size= 1
       )
 
+  input_signatures = {
+  'voxel_grid': tf.TensorSpec(shape=(None, 24, 24, 16, 2), dtype=tf.float32, name='voxel_grid'),
+  'scalar_features': tf.TensorSpec(shape=(None, 3), dtype=tf.float32, name='scalar_features')
+              }
   cmsml.tensorflow.save_graph("graph.pb", model2, variables_to_constants=True)
+  print(model2.output.name)
+  #cmsml.tensorflow.save_graph("graph.pb.txt", model2, variables_to_constants=True) #This to check the names of the inputs and the outputs.
+
+  #onnx_model, _ = tf2onnx.convert.from_keras(model2, input_signatures, opset=13)
+  #onnx.save(onnx_model, "models/model.onnx")
+  model2.save("models")
   '''
   model = cnn_model(input_3D_shape)
   model.summary()
