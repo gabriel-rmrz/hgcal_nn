@@ -1,5 +1,4 @@
 DEBUG=False
-DOPLOTS=True
 import awkward as ak
 import numpy as np
 import uproot as uproot
@@ -99,6 +98,10 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
   bxCls = clusters["position_x"].array()
   byCls = clusters["position_y"].array()
   bzCls = clusters["position_z"].array()
+
+  bxTsM = trackstersMerged["barycenter_x"].array()
+  byTsM = trackstersMerged["barycenter_y"].array()
+  bzTsM = trackstersMerged["barycenter_z"].array()
   #corrected_enCls = clusters["correctedEnergy"].array()
   enCls = clusters["energy"].array()
 
@@ -119,6 +122,7 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
   fTsM_g3D = ak.ArrayBuilder()
   fTsM_tiles = ak.ArrayBuilder()
   fTsM_pos = ak.ArrayBuilder()
+  fTsM_scalars = ak.ArrayBuilder()
   fTsM_eta_phi = ak.ArrayBuilder()
   fTsM_1D = ak.ArrayBuilder()
   fTsM_1D_cls = ak.ArrayBuilder()
@@ -173,6 +177,7 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
     fTsM_pos_cls.append(glob_pos_cls)
     fTsM_eta_phi_cls.append(glob_eta_phi_cls)
     fTsM_pos.append(glob_pos)
+    fTsM_scalars.append(np.array([betaClsInTx, bxClsInTs]))
     fTsM_eta_phi.append(glob_eta_phi)
     fTsM_en.append(raw_enTs[i][mTs])
     fTsM_en_cls.append(enCls[i][vtxIds])
@@ -253,9 +258,9 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
     nbins_z = 10 # Use a pair number
     xy_bins_width = 5.
     '''
-    nbins_x = 24 # Use a pair number
+    nbins_x = 24# Use a pair number
     nbins_y = 24 # Use a pair number
-    nbins_z = 16 # Use a pair number
+    nbins_z = 24 # Use a pair number
     xy_bins_width = 1.
     bxCls_mean_tile = xy_bins_width *(bxCls_mean//xy_bins_width)
     bins_x = np.arange(bxCls_mean_tile-xy_bins_width*nbins_x/2, bxCls_mean_tile + xy_bins_width*(nbins_x/2+1), xy_bins_width)
@@ -333,49 +338,9 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
 
   print(f"fTsM_g3D_cls.type: {fTsM_g3D_cls.type}")
   print(f"tTsM_out.type: {tTsM_out.type}")
-  if DOPLOTS:
-    vox_in = (np.array(fTsM_g3D_cls)[tTsM_out,0,:,:,:] > 0).astype(np.int32)
-    plot_voxels(vox_in)
 
   return deltaTsM_1D, deltaTsM_1D_cls, fTsM_1D, fTsM_1D, fTsM_g3D, fTsM_g3D_cls, tTsM
 
-
-def plot_vars(deltaTsM_1D_cls, fTsM_1D, fTsM_g3D_cls, tTsM, suf):
-    myhist(ak.flatten(deltaTsM_1D_cls[:,:,0], axis=None), title="Delta_x_cls", xlabel="x-x_mean for TsM", ylabel="Counts/bin", bins=45, label=suf)
-    plt.savefig(f"plots/{suf}_val_delta_x.png")
-    plt.clf()
-    myhist(ak.flatten(deltaTsM_1D_cls[:,:,1], axis=None), title="Delta_y_cls", xlabel="y-y_mean for TsM", ylabel="Counts/bin", bins=45, label=suf)
-    plt.savefig(f"plots/{suf}_val_delta_y.png")
-    plt.clf()
-    myhist(ak.flatten(deltaTsM_1D_cls[:,:,2], axis=None), title="Delta_z_cls", xlabel="z-z_mean for TsM", ylabel="Counts/bin", bins=45, label=suf)
-    plt.savefig(f"plots/{suf}_val_delta_z.png")
-    plt.clf()
-
-    myhist(fTsM_1D[:,0], title="mean_x", xlabel="x_mean for clusters", ylabel="Counts/bin", bins=45, label=suf)
-    plt.savefig(f"plots/{suf}_val_mean_x.png")
-    plt.clf()
-    myhist(fTsM_1D[:,1], title="mean_y", xlabel="y_mean for clusters", ylabel="Counts/bin", bins=45, label=suf)
-    plt.savefig(f"plots/{suf}_val_mean_y.png")
-    plt.clf()
-    myhist(fTsM_1D[:,2], title="mean_z", xlabel="z_mean for clusters", ylabel="Counts/bin", bins=45, label=suf)
-    plt.savefig(f"plots/{suf}_val_mean_z.png")
-    plt.clf()
-    myhist(np.array(tTsM, dtype=np.int32), title="Truth: en>en_min and score < score_max", xlabel="Passed", ylabel="Counts/bin", bins=45, label=suf)
-    plt.savefig(f"plots/{suf}_val_truth.png")
-    plt.clf()
-
-def plot_voxels(vox_in):
-    print("####################")
-    print("if this does not work is probably because we don't have enough TICLCandidate passing the energy cut")
-    print("####################")
-    fig = plt.figure(figsize=(30,30), dpi=200)
-    for sp in range(1,50,1):
-      ax = fig.add_subplot(7,7,sp, projection='3d')
-      #ax = fig.gca( projection='3d')
-      vox = vox_in[sp]
-      ax.voxels(vox, shade=True, alpha=0.45)
-    plt.savefig("voxel_test.png")
-    plt.clf()
 
 def main():
   """
@@ -409,8 +374,6 @@ def main():
     #deltaTsM_1D, fTsM_1D, fTsM_g3D, fTsM_pos, tTsM = prepare(f"data/histo_{suf}.root", suf, bins=bins, isPU=False)
     deltaTsM_1D, deltaTsM_1D_cls, fTsM_1D, fTsM_1D_cls, fTsM_g3D, fTsM_g3D_cls, tTsM = prepare_fromSim(f"data/histo_{suf}.root", suf, bins=bins, isPU=False)
 
-    if DOPLOTS:
-      plot_vars(deltaTsM_1D_cls, fTsM_1D, fTsM_g3D_cls, tTsM, suf)
 
       
       

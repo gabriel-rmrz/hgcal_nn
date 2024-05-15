@@ -1,3 +1,4 @@
+
 import numpy as np
 import awkward as ak
 from scipy.optimize import curve_fit
@@ -6,6 +7,19 @@ import matplotlib.pyplot as plt
 def Gauss(x, A, B):
   return A*np.exp(-1*B*x**2)
 '''
+def plot_voxels(vox_in, prefix):
+    print("####################")
+    print("if this does not work is probably because we don't have enough TICLCandidate passing the energy cut")
+    print("####################")
+    fig = plt.figure(figsize=(10,10), dpi=200)
+    for sp in range(1,5,1):
+      ax = fig.add_subplot(2,2,sp, projection='3d')
+      #ax = fig.gca( projection='3d')
+      vox = vox_in[sp]
+      ax.voxels(vox, shade=True, alpha=0.45)
+    plt.savefig(f"plots/{prefix}_voxel_test.png")
+    plt.clf()
+
 def Gauss(x, a, x0, sigma): 
       return a*np.exp(-(x-x0)**2/(2*sigma**2)) 
 
@@ -34,33 +48,33 @@ def myhistWithGauss(X, bins=30, title='title', xlabel='time (ns)', ylabel='Count
   plt.legend()
   print(f"p1 fot {title}: {p1}")
 
-def plot_vars(deltaTsM_1D, fTsM_1D, fTsM_g3D, tTsM, suf):
+def plot_vars(deltaTsM_1D, fTsM_1D, fTsM_g3D, tTsM, prefix):
   print(f"fTsM_1D[0,:]: {fTsM_1D[0,:]}")
-  myhist(fTsM_1D[:, 0], title="mean_eta", xlabel="eta_mean for TsM", ylabel="Counts/bin", bins=100, label=suf)
-  plt.savefig(f"plots/{suf}_val_mean_eta.png")
+  myhist(fTsM_1D[:, 0], title="mean_x", xlabel="x_mean for TsM", ylabel="Counts/bin", bins=100, label=prefix)
+  plt.savefig(f"plots/{prefix}_val_mean_eta.png")
   plt.clf()
-  myhist(fTsM_1D[:, 1], title="mean_phi", xlabel="phi_mean for TsM", ylabel="Counts/bins", bins=100,  label=suf)
-  plt.savefig(f"plots/{suf}_val_mean_phi.png")
+  myhist(fTsM_1D[:, 1], title="mean_y", xlabel="y_mean for TsM", ylabel="Counts/bins", bins=100,  label=prefix)
+  plt.savefig(f"plots/{prefix}_val_mean_phi.png")
   plt.clf()
-  myhist(fTsM_1D[:, 2], title="mean_z", xlabel="z_mean for TsM", ylabel="Counts/bin", bins=45,  label=suf)
-  plt.savefig(f"plots/{suf}_val_mean_z.png")
+  myhist(fTsM_1D[:, 2], title="mean_z", xlabel="z_mean for TsM", ylabel="Counts/bin", bins=45,  label=prefix)
+  plt.savefig(f"plots/{prefix}_val_mean_z.png")
   plt.clf()
-  myhist(np.array(tTsM, dtype=np.int32), title="Truth: en>en_min and score < score_max", xlabel="Passed", ylabel="Counts/bin", bins=30, label=suf)
-  plt.savefig(f"plots/{suf}_val_truth.png")
+  myhist(np.array(tTsM, dtype=np.int32), title="Truth: en>en_min and score < score_max", xlabel="Passed", ylabel="Counts/bin", bins=30, label=prefix)
+  plt.savefig(f"plots/{prefix}_val_truth.png")
   plt.clf()
 
   print(f"deltaTsM_1D[:,:,0]:{deltaTsM_1D[:,:,0]}")
   print(f"deltaTsM_1D[0,0,:].type:{deltaTsM_1D[0,0,:].type}")
   print(f"ak.flatten(deltaTsM_1D[:,:,0]):{ak.flatten(deltaTsM_1D[:,:,0])}")
   print(f"len(ak.flatten(deltaTsM_1D[:,:,0])):{len(ak.flatten(deltaTsM_1D[:,:,0]))}")
-  myhistWithGauss(ak.flatten(deltaTsM_1D[:,:,0], axis=None), title="Delta_eta", xlabel="x-x_mean for TsM", ylabel="Counts/bin", bins=100, range=(-40,40), label=suf)
-  plt.savefig(f"plots/{suf}_val_delta_x_withGauss.png")
+  myhistWithGauss(ak.flatten(deltaTsM_1D[:,:,0], axis=None), title="Delta_x", xlabel="x-x_mean for TsM", ylabel="Counts/bin", bins=100, range=(-10,10), label=prefix)
+  plt.savefig(f"plots/{prefix}_val_delta_x_withGauss.png")
   plt.clf()
-  myhistWithGauss(ak.flatten(deltaTsM_1D[:,:,1], axis=None), title="Delta_x", xlabel="x-x_mean for TsM", ylabel="Counts/bin", bins=100, range=(-40,40), label=suf)
-  plt.savefig(f"plots/{suf}_val_delta_y_withGauss.png")
+  myhistWithGauss(ak.flatten(deltaTsM_1D[:,:,1], axis=None), title="Delta_y", xlabel="y-y_mean for TsM", ylabel="Counts/bin", bins=100, range=(-10,10), label=prefix)
+  plt.savefig(f"plots/{prefix}_val_delta_y_withGauss.png")
   plt.clf()
-  myhistWithGauss(ak.flatten(deltaTsM_1D[:,:,2], axis=None), title="Delta_z", xlabel="z-z_mean for TsM", ylabel="Counts/bin", bins=300, range=(-40,40),label=suf)
-  plt.savefig(f"plots/{suf}_val_delta_z_withGauss.png")
+  myhistWithGauss(ak.flatten(deltaTsM_1D[:,:,2], axis=None), title="Delta_z", xlabel="z-z_mean for TsM", ylabel="Counts/bin", bins=300, range=(-40,40),label=prefix)
+  plt.savefig(f"plots/{prefix}_val_delta_z_withGauss.png")
   plt.clf()
 
 
@@ -69,12 +83,13 @@ def load_fromParquet(filename):
 
 def main():
   #prefix = "SinglePi"
-  prefix = "4Photons_0PU"
-  #prefix = "4Pions_0PU"
+  #prefix = "4Photons_0PU"
+  prefix = "4Pions_0PU"
   target_file=f"data/{prefix}_tTsM.parquet"
   delta_file = f"data/{prefix}_deltaTsM_1D_cls.parquet"
-  features_1D_file =f"data/{prefix}_fTsM_1D.parquet"
-  features_3D_file =f"data/{prefix}_grid_3D.parquet"
+  features_1D_file =f"data/{prefix}_fTsM_1D_cls.parquet"
+  features_3D_file =f"data/{prefix}_grid_3D_cls.parquet"
+
   tTsM = load_fromParquet(target_file)
   deltaTsM_1D = load_fromParquet(delta_file)
   fTsM_1D = load_fromParquet(features_1D_file)
@@ -85,10 +100,13 @@ def main():
   ##print(deltaTsM_1D.type)
 
   fTsM_1D = np.asarray(fTsM_1D)
-  fTsM_3D = np.asarray(fTsM_3D)
-  fTsM_3D = np.asarray(fTsM_3D)
-  fTsM_3D = np.transpose(fTsM_3D, [0,2,3,4,1])
+  tTsM = np.asarray(tTsM)
+  #fTsM_3D = np.asarray(fTsM_3D)
+  #fTsM_3D = np.transpose(fTsM_3D, [0,2,3,4,1])
   
+  vox_in = (np.array(fTsM_3D)[tTsM,0,:,:,:] > 0).astype(np.int32)
+  plot_voxels(vox_in, prefix)
+  fTsM_3D = np.transpose(fTsM_3D, [0,2,3,4,1])
   plot_vars(deltaTsM_1D, fTsM_1D, fTsM_3D, tTsM, prefix)
   
 

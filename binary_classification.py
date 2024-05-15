@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import  cmsml
 def weighted_binary_crossentropy(y_true, y_pred):
-  weights = (y_true * 1) + (1 - y_true) * 1.5  # Increase weight for negatives
+  weights = (y_true * 1) + (1 - y_true) * 0.75  # Increase weight for negatives
   bce = K.binary_crossentropy(y_true, y_pred)
   weighted_bce = K.mean(bce * weights)
   return weighted_bce
@@ -78,8 +78,10 @@ def cnn_model2(input_shape):
   output = layers.Dense(1, activation="sigmoid", name="output")(z)
 
   model = models.Model(inputs=[voxel_input, scalar_input], outputs=output)
-  #model.compile(optimizer='adam', loss=focal_loss(alpha=0.25, gamma=2.0), metrics=['accuracy', Precision(), Recall()])
+  #model.compile(optimizer='adam', loss=weighted_binary_crossentropy, metrics=['accuracy'])
   model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+  #model.compile(optimizer='adam', loss=focal_loss(alpha=0.25, gamma=2.0), metrics=['accuracy', Precision(), Recall()])
+  #model.compile(optimizer='adam', loss=focal_loss(alpha=0.25, gamma=2.0), metrics=['accuracy'])
   return model
 
 
@@ -111,8 +113,9 @@ def main():
       print(suma)
   '''
   
-  input_3D_shape = (24, 24, 16,2)
+  input_3D_shape = (24, 24, 24,2)
   #fTsM_3D = fTsM_3D[:,:,:,:,1]
+  '''
   fTsM_3D_std_occ = np.std(fTsM_3D[:,:,:,:,0])
   fTsM_3D_mean_occ = np.mean(fTsM_3D[:,:,:,:,0])
   fTsM_3D[:,:,:,:,0]= (fTsM_3D[:,:,:,:,0] - fTsM_3D_mean_occ)/ fTsM_3D_std_occ
@@ -133,6 +136,7 @@ def main():
   fTsM_1D_mean_z = np.mean(fTsM_1D[2,:])
   fTsM_1D[2,:] = (fTsM_1D[2,:] -fTsM_1D_mean_z)/ fTsM_1D_std_z
   print(fTsM_1D.shape)
+  '''
 
   
   # Create the model
@@ -173,11 +177,13 @@ def main():
   print(f"truth_test: {truth_test}")
   model2 = cnn_model2(input_3D_shape)
   model2.summary()
+  callback = tf.keras.callbacks.EarlyStopping(monitor='loss', patience = 10)
   history2 = model2.fit(
       [grid_train, pos_train], truth_train,
       validation_data=([grid_val, pos_val], truth_val),
-      epochs= 1,
-      batch_size= 1
+      epochs= 150,
+      batch_size= 32,
+      callbacks=[callback]
       )
 
   input_signatures = {
@@ -185,7 +191,8 @@ def main():
   'scalar_features': tf.TensorSpec(shape=(None, 3), dtype=tf.float32, name='scalar_features')
               }
   cmsml.tensorflow.save_graph("graph.pb", model2, variables_to_constants=True)
-  print(model2.output.name)
+  #cmsml.tensorflow.save_graph("graph.pb.txt", model2, variables_to_constants=True)
+  ##cmsml.tensorflow.save_graph("graph.pb", model2, variables_to_constants=True)
   #cmsml.tensorflow.save_graph("graph.pb.txt", model2, variables_to_constants=True) #This to check the names of the inputs and the outputs.
 
   #onnx_model, _ = tf2onnx.convert.from_keras(model2, input_signatures, opset=13)
@@ -201,12 +208,14 @@ def main():
       batch_size= 32
       )
   '''
+  plt.title('Accuracy')
   plt.plot(history2.history['accuracy'], label="training")
   plt.plot(history2.history['val_accuracy'], label="validation")
   plt.legend(fontsize=10)
   plt.savefig('plots/accuracy_cnn.png')
   plt.clf()
 
+  plt.title('Loss')
   plt.plot(history2.history['loss'], label="training")
   plt.plot(history2.history['val_loss'], label="validation")
   plt.legend(fontsize=10)
