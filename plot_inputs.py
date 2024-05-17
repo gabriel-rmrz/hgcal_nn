@@ -17,7 +17,28 @@ def plot_voxels(vox_in, prefix):
       #ax = fig.gca( projection='3d')
       vox = vox_in[sp]
       ax.voxels(vox, shade=True, alpha=0.45)
-    plt.savefig(f"plots/{prefix}_voxel_test.png")
+    plt.savefig(f"plots/{prefix}_voxels.png")
+    plt.clf()
+    projection_x = np.sum(vox_in, axis=(0,2,3))
+    plt.plot(projection_x, 'bo-')
+    plt.xlabel('x')
+    plt.ylabel('Occupancy')
+    plt.grid(True)
+    plt.savefig(f"plots/{prefix}_voxels_x_projection.png")
+    plt.clf()
+    projection_y = np.sum(vox_in, axis=(0,1,3))
+    plt.plot(projection_y, 'bo-')
+    plt.xlabel('y')
+    plt.ylabel('Occupancy')
+    plt.grid(True)
+    plt.savefig(f"plots/{prefix}_voxels_y_projection.png")
+    plt.clf()
+    projection_z = np.sum(vox_in, axis=(0,1,2))
+    plt.plot(projection_z, 'bo-')
+    plt.xlabel('z')
+    plt.ylabel('Occupancy')
+    plt.grid(True)
+    plt.savefig(f"plots/{prefix}_voxels_z_projection.png")
     plt.clf()
 
 def Gauss(x, a, x0, sigma): 
@@ -48,7 +69,7 @@ def myhistWithGauss(X, bins=30, title='title', xlabel='time (ns)', ylabel='Count
   plt.legend()
   print(f"p1 fot {title}: {p1}")
 
-def plot_vars(deltaTsM_1D, fTsM_1D, fTsM_g3D, tTsM, prefix):
+def plot_vars(deltaTsM_1D, fTsM_1D, tTsM, prefix):
   print(f"fTsM_1D[0,:]: {fTsM_1D[0,:]}")
   myhist(fTsM_1D[:, 0], title="mean_x", xlabel="x_mean for TsM", ylabel="Counts/bin", bins=100, label=prefix)
   plt.savefig(f"plots/{prefix}_val_mean_eta.png")
@@ -106,8 +127,12 @@ def main():
   
   vox_in = (np.array(fTsM_3D)[tTsM,0,:,:,:] > 0).astype(np.int32)
   plot_voxels(vox_in, prefix)
-  fTsM_3D = np.transpose(fTsM_3D, [0,2,3,4,1])
-  plot_vars(deltaTsM_1D, fTsM_1D, fTsM_3D, tTsM, prefix)
+  print(f"fTsM_3D[0].type: {fTsM_3D[0].type}")
+  print(f"fTsM_3D[0][0].type: {fTsM_3D[0][0].type}")
+  print(f"fTsM_3D[0][0][0].type: {fTsM_3D[0][0][0].type}")
+  print(f"fTsM_3D[0][0][0][0].type: {fTsM_3D[0][0][0][0].type}")
+  #fTsM_3D = np.transpose(fTsM_3D, [0,2,3,4,1])
+  plot_vars(deltaTsM_1D, fTsM_1D, tTsM, prefix)
   
 
 

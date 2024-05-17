@@ -102,6 +102,8 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
   bxTsM = trackstersMerged["barycenter_x"].array()
   byTsM = trackstersMerged["barycenter_y"].array()
   bzTsM = trackstersMerged["barycenter_z"].array()
+  betaTsM = trackstersMerged["barycenter_eta"].array()
+  bphiTsM = trackstersMerged["barycenter_phi"].array()
   #corrected_enCls = clusters["correctedEnergy"].array()
   enCls = clusters["energy"].array()
 
@@ -146,12 +148,21 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
     isPassScore0 =simToReco_score[i] < 0.35
     if np.sum(isPassScore0, axis=None) < 1:
       continue
-    en_ratio = simToReco_en[i][isPassScore0]/simTICLCandidate_raw_energy[i] + 0
+    en_ratio = simToReco_en[i][isPassScore0]/simTICLCandidate_raw_energy[i] 
+    #print(f"en_ratio: {en_ratio}")
     en_ratio = flatten_array(en_ratio)
     max_i = np.argmax(en_ratio)
-    s = ev[isPassScore0]
-    s = s[max_i]
+    s = ev[isPassScore0]  # Tracksters in the in the tracksterMergeds that passed the score cut..
+    ## TODO: Use all the s' , then flatten, and compute unique.
+    #print(f"s: {s}")
+    if len(s[max_i]) > 1:
+      print(f"s[max_i]: {s[max_i]}")
+    #print(f"max_i: {max_i}")
+    s = s[max_i] # tracksterMerged with highest energy ratio.
     j = max_i
+    #print(f"tsLinkedInCand[i][s]: {tsLinkedInCand[i][s]}")
+    #print(f"bxTsM[i]: {bxTsM[i]}")
+    #print(f"bxTsM[i][s]: {bxTsM[i][s]}")
     mTs = tsLinkedInCand[i][s]
     mTs_en = simToReco_en[i][j]
     mTs = ak.flatten(tsLinkedInCand[i][s])
@@ -162,8 +173,11 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
 
     ###################################
     ## Defition of the inputs
-    glob_pos = np.array([bxTs[i][mTs], byTs[i][mTs], bzTs[i][mTs]])
-    glob_eta_phi = np.array([betaTs[i][mTs], bphiTs[i][mTs]])
+    #glob_pos = np.array([bxTs[i][mTs], byTs[i][mTs], bzTs[i][mTs]])
+    glob_pos = np.array([bxTsM[i][s], byTsM[i][s], bzTsM[i][s]])
+    #print(glob_pos)
+    #glob_eta_phi = np.array([betaTs[i][mTs], bphiTs[i][mTs]])
+    glob_eta_phi = np.array([betaTsM[i][s], bphiTsM[i][s]])
 
     vtxIds = ak.flatten(vtxIdTs[i][mTs])
     betaClsInTs = betaCls[i][vtxIds]
@@ -177,7 +191,7 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
     fTsM_pos_cls.append(glob_pos_cls)
     fTsM_eta_phi_cls.append(glob_eta_phi_cls)
     fTsM_pos.append(glob_pos)
-    fTsM_scalars.append(np.array([betaClsInTx, bxClsInTs]))
+    fTsM_scalars.append(np.array([betaClsInTs, bxClsInTs]))
     fTsM_eta_phi.append(glob_eta_phi)
     fTsM_en.append(raw_enTs[i][mTs])
     fTsM_en_cls.append(enCls[i][vtxIds])
@@ -258,9 +272,9 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
     nbins_z = 10 # Use a pair number
     xy_bins_width = 5.
     '''
-    nbins_x = 24# Use a pair number
-    nbins_y = 24 # Use a pair number
-    nbins_z = 24 # Use a pair number
+    nbins_x = 30# Use a pair number
+    nbins_y = 30 # Use a pair number
+    nbins_z = 36 # Use a pair number
     xy_bins_width = 1.
     bxCls_mean_tile = xy_bins_width *(bxCls_mean//xy_bins_width)
     bins_x = np.arange(bxCls_mean_tile-xy_bins_width*nbins_x/2, bxCls_mean_tile + xy_bins_width*(nbins_x/2+1), xy_bins_width)
@@ -323,7 +337,8 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
     #deltaTsM_eta_phi_z_1D_cls.append(rel_eta_phi_z_cls)
 
     #deltaTsM_1D.append(rel_pos)
-    tTsM_out.append(tTsM[i].item())
+    #print(tTsM[i])
+    tTsM_out.append(tTsM[i])
     deltaTsM_1D.append(rel_pos)
     deltaTsM_eta_phi_z_1D.append(rel_eta_phi_z)
     fTsM_g3D_cls.append(np.array([histo_pos,histo_en]))
