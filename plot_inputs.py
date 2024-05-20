@@ -69,7 +69,7 @@ def myhistWithGauss(X, bins=30, title='title', xlabel='time (ns)', ylabel='Count
   plt.legend()
   print(f"p1 fot {title}: {p1}")
 
-def plot_vars(deltaTsM_1D, fTsM_1D, tTsM, prefix):
+def plot_vars(deltaTsM_1D, fTsM_1D, tTsM, fTsM_score, prefix):
   print(f"fTsM_1D[0,:]: {fTsM_1D[0,:]}")
   myhist(fTsM_1D[:, 0], title="mean_x", xlabel="x_mean for TsM", ylabel="Counts/bin", bins=100, label=prefix)
   plt.savefig(f"plots/{prefix}_val_mean_eta.png")
@@ -83,11 +83,11 @@ def plot_vars(deltaTsM_1D, fTsM_1D, tTsM, prefix):
   myhist(np.array(tTsM, dtype=np.int32), title="Truth: en>en_min and score < score_max", xlabel="Passed", ylabel="Counts/bin", bins=30, label=prefix)
   plt.savefig(f"plots/{prefix}_val_truth.png")
   plt.clf()
+  print(f"fTsM_score: {fTsM_score}")
+  myhist(np.array(fTsM_score), title="simToRecos_score", xlabel="score", ylabel="Counts/bin", bins=30, label=prefix)
+  plt.savefig(f"plots/{prefix}_val_score.png")
+  plt.clf()
 
-  print(f"deltaTsM_1D[:,:,0]:{deltaTsM_1D[:,:,0]}")
-  print(f"deltaTsM_1D[0,0,:].type:{deltaTsM_1D[0,0,:].type}")
-  print(f"ak.flatten(deltaTsM_1D[:,:,0]):{ak.flatten(deltaTsM_1D[:,:,0])}")
-  print(f"len(ak.flatten(deltaTsM_1D[:,:,0])):{len(ak.flatten(deltaTsM_1D[:,:,0]))}")
   myhistWithGauss(ak.flatten(deltaTsM_1D[:,:,0], axis=None), title="Delta_x", xlabel="x-x_mean for TsM", ylabel="Counts/bin", bins=100, range=(-10,10), label=prefix)
   plt.savefig(f"plots/{prefix}_val_delta_x_withGauss.png")
   plt.clf()
@@ -107,11 +107,13 @@ def main():
   #prefix = "4Photons_0PU"
   prefix = "4Pions_0PU"
   target_file=f"data/{prefix}_tTsM.parquet"
+  score_file=f"data/{prefix}_s2r_score.parquet"
   delta_file = f"data/{prefix}_deltaTsM_1D_cls.parquet"
   features_1D_file =f"data/{prefix}_fTsM_1D_cls.parquet"
   features_3D_file =f"data/{prefix}_grid_3D_cls.parquet"
 
   tTsM = load_fromParquet(target_file)
+  fTsM_score = load_fromParquet(score_file)
   deltaTsM_1D = load_fromParquet(delta_file)
   fTsM_1D = load_fromParquet(features_1D_file)
   fTsM_3D = load_fromParquet(features_3D_file)
@@ -127,12 +129,8 @@ def main():
   
   vox_in = (np.array(fTsM_3D)[tTsM,0,:,:,:] > 0).astype(np.int32)
   plot_voxels(vox_in, prefix)
-  print(f"fTsM_3D[0].type: {fTsM_3D[0].type}")
-  print(f"fTsM_3D[0][0].type: {fTsM_3D[0][0].type}")
-  print(f"fTsM_3D[0][0][0].type: {fTsM_3D[0][0][0].type}")
-  print(f"fTsM_3D[0][0][0][0].type: {fTsM_3D[0][0][0][0].type}")
   #fTsM_3D = np.transpose(fTsM_3D, [0,2,3,4,1])
-  plot_vars(deltaTsM_1D, fTsM_1D, tTsM, prefix)
+  plot_vars(deltaTsM_1D, fTsM_1D, tTsM, fTsM_score, prefix)
   
 
 

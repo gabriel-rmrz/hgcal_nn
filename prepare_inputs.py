@@ -65,7 +65,7 @@ def save_array_to_file(arr_builder, filename):
   return arr
 
 
-def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
+def prepare_fromSim(filename, suf, nbins= [6,6,6], isPU=False):
   print(f"Reading {filename}...")
   file = uproot.open(filename)
 
@@ -124,6 +124,7 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
   fTsM_pos = ak.ArrayBuilder()
   fTsM_scalars = ak.ArrayBuilder()
   fTsM_eta_phi = ak.ArrayBuilder()
+  fTsM_s2r_score = ak.ArrayBuilder()
   fTsM_1D_cls = ak.ArrayBuilder()
   deltaTsM_1D_cls = ak.ArrayBuilder()
   deltaTsM_eta_phi_z_1D_cls = ak.ArrayBuilder()
@@ -136,16 +137,14 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
   ev_info =  ak.ArrayBuilder()
 
 
-  none_reco = 0
   for i, s2r_ind in enumerate(simToReco_index): # looping over all the events
   #for i, s2r_ind in enumerate(simToReco_index[:101]): # looping over all the events
     if not (i%100) :
       print(f"%%%%%%%%%%%%%%% Event {i} %%%%%%%%%%%%%%%")
     
     for j in range(len(s2r_ind)):
-      isPassScore0 = simToReco_score[i][j] < 0.35
+      isPassScore0 = simToReco_score[i][j] < 0.5
       if np.sum(isPassScore0, axis=None) < 1:
-        none_reco+=1
         continue
       ind = np.arange(len(isPassScore0),dtype=int)
       ind = ind[isPassScore0]
@@ -182,28 +181,27 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
         fTsM_pos.append(glob_pos)
         fTsM_scalars.append(np.array([betaClsInTs, bxClsInTs]))
         fTsM_eta_phi.append(glob_eta_phi)
+        fTsM_s2r_score.append(np.array(simToReco_score[i][j][k]))
         fTsM_en_cls.append(enCls[i][vtxIds])
 
         ###################################
         ## Defition of the target
         ##################################
         max_score_s2r = 0.35
-        min_energy_s2r = 0.5
-        #isPass = ((recoToSim_score[i][j][k] < max_score_s2r) & (recoToSim_en[i][j][k] > min_energy_s2r))
+        min_energy_s2r = 0.0
         isPassScore = simToReco_score[i][j][k] < max_score_s2r 
-        #en_frac = recoToSim_en[i][j][k][isPassScore]/simTICLCandidate_regressed_energy[i][recoToSim_index[i][j][k][isPassScore]]
-        #en_frac = simToReco_en[i][j][k][isPassScore]/simtrackstersCP_raw_energy[i][j]
         en_frac = mTs_en/simtrackstersCP_raw_energy[i][j]
 
-        isPass = False
-        if np.any(en_frac > 0.5):
-          isPass = True
-        tTsM.append(isPass)
+        isPassEn = False
+        if np.any(en_frac > min_energy_s2r):
+          isPassEn = True
+        tTsM.append(isPassScore)
 
   ev_info = ev_info.snapshot()
   fTsM_en_cls = save_array_to_file(fTsM_en_cls, f"{suf}_en_cls.parquet")
   fTsM_pos = save_array_to_file(fTsM_pos, f"{suf}_pos.parquet")
   fTsM_eta_phi = save_array_to_file(fTsM_eta_phi, f"{suf}_eta_phi.parquet")
+  fTsM_s2r_score = save_array_to_file(fTsM_s2r_score, f"{suf}_s2r_score.parquet")
   fTsM_pos_cls = save_array_to_file(fTsM_pos_cls, f"{suf}_pos_cls.parquet")
   fTsM_eta_phi_cls = save_array_to_file(fTsM_eta_phi_cls, f"{suf}_eta_phi_cls.parquet")
   #tTsM = save_array_to_file(tTsM, f"{suf}_tTsM.parquet")
@@ -213,7 +211,6 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
 
   z_layers = np.array([322, 323, 325, 326, 328, 329, 331, 332, 334, 335, 337, 338, 340,341, 343, 344, 346, 347, 349, 350, 353, 354, 356, 357, 360, 361,
                   367, 374, 380, 386, 393, 399, 405, 411, 412, 418, 424, 430, 431, 439, 447, 455, 463, 471, 472, 480, 488, 496, 504, 505, 513], dtype=np.int32)
-  print(f"fTsM_pos.type: {fTsM_pos.type}")
   for i in range(len(fTsM_pos)):
     if not (i%100) :
       print(f"%%%%%%%%%%%%%%% Candidate {i} %%%%%%%%%%%%%%%")
@@ -239,9 +236,9 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
     rel_eta_phi_z_cls = np.array([delta_etaCls, delta_phiCls, delta_zCls]).T
 
     #range_grid= [[-25,25], [-25,25],[-5,5]]
-    nbins_x = 30# Use a pair number
-    nbins_y = 30 # Use a pair number
-    nbins_z = 36 # Use a pair number
+    nbins_x = nbins[0] # Use a pair number
+    nbins_y = nbins[1] # Use a pair number
+    nbins_z = nbins[2] # Use a pair number
     xy_bins_width = 1.
     bxCls_mean_tile = xy_bins_width *(bxCls_mean//xy_bins_width)
     bins_x = np.arange(bxCls_mean_tile-xy_bins_width*nbins_x/2, bxCls_mean_tile + xy_bins_width*(nbins_x/2+1), xy_bins_width)
@@ -261,13 +258,6 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
         bins_z[l] = z_layers[-1] +k+1  -.5
     else:
       bins_z = z_layers[np.arange(bzCls_mean_tile_arg-int(nbins_z/2), bzCls_mean_tile_arg+int(nbins_z/2)+1, 1)] -.5
-
-
-        
-
-    #print(f"bxCls_mean_tile: {bxCls_mean_tile}")
-    #print(f"bins_x: {bins_x}")
-    #range_grid_cls= [[-25,25], [-25,25],[-25.,25.]]
     bins = (bins_x, bins_y, bins_z)
 
     pos_cls = pos_cls.T
@@ -280,12 +270,11 @@ def prepare_fromSim(filename, suf, bins= [6,6,6], isPU=False):
     tTsM_out.append(tTsM[i])
     fTsM_g3D_cls.append(np.array([histo_pos,histo_en]))
 
-  print(f"none_reco: {none_reco}")
   tTsM_out = save_array_to_file(tTsM_out, f"{suf}_tTsM.parquet")
   fTsM_1D_cls = save_array_to_file(fTsM_1D_cls, f"{suf}_fTsM_1D_cls.parquet")
   deltaTsM_1D_cls = save_array_to_file(deltaTsM_1D_cls, f"{suf}_deltaTsM_1D_cls.parquet")
   fTsM_g3D_cls = save_array_to_file(fTsM_g3D_cls, f"{suf}_grid_3D_cls.parquet")
-  return deltaTsM_1D_cls, fTsM_1D_cls, fTsM_g3D_cls, tTsM
+  return deltaTsM_1D_cls, fTsM_1D_cls, fTsM_g3D_cls, fTsM_s2r_score, tTsM
 
 
 def main():
@@ -315,19 +304,9 @@ def main():
    
    #'4Photon_PU200'
    #]
-  bins = [12,12,12]
+  nbins = [30,30,36]
   for suf in file_sufix:
-    deltaTsM_1D_cls, fTsM_1D_cls, fTsM_g3D_cls, tTsM = prepare_fromSim(f"data/histo_{suf}.root", suf, bins=bins, isPU=False)
-
-
-      
-      
-
-
-
-
-  
-
+    deltaTsM_1D_cls, fTsM_1D_cls, fTsM_g3D_cls, fTsM_s2r_score, tTsM = prepare_fromSim(f"data/histo_{suf}.root", suf, nbins=nbins, isPU=False)
 
 if __name__=='__main__':
   main()
