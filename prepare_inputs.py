@@ -304,7 +304,7 @@ def main():
    
    #'4Photon_PU200'
    #]
-  nbins = [30,30,36]
+  nbins = [24,24,36]
   for suf in file_sufix:
     deltaTsM_1D_cls, fTsM_1D_cls, fTsM_g3D_cls, fTsM_s2r_score, tTsM = prepare_fromSim(f"data/histo_{suf}.root", suf, nbins=nbins, isPU=False)
 

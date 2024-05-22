@@ -113,7 +113,7 @@ def main():
       print(suma)
   '''
   
-  input_3D_shape = (24, 24, 24,2)
+  input_3D_shape = (24, 24, 36,2)
   #fTsM_3D = fTsM_3D[:,:,:,:,1]
   '''
   fTsM_3D_std_occ = np.std(fTsM_3D[:,:,:,:,0])
@@ -182,12 +182,12 @@ def main():
       [grid_train, pos_train], truth_train,
       validation_data=([grid_val, pos_val], truth_val),
       epochs= 150,
-      batch_size= 32,
+      batch_size= 16,
       callbacks=[callback]
       )
 
   input_signatures = {
-  'voxel_grid': tf.TensorSpec(shape=(None, 24, 24, 16, 2), dtype=tf.float32, name='voxel_grid'),
+  'voxel_grid': tf.TensorSpec(shape=(None, 24, 24, 36, 2), dtype=tf.float32, name='voxel_grid'),
   'scalar_features': tf.TensorSpec(shape=(None, 3), dtype=tf.float32, name='scalar_features')
               }
   cmsml.tensorflow.save_graph("graph.pb", model2, variables_to_constants=True)
