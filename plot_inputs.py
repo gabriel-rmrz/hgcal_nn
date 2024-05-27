@@ -12,8 +12,8 @@ def plot_voxels(vox_in, prefix):
     print("if this does not work is probably because we don't have enough TICLCandidate passing the energy cut")
     print("####################")
     fig = plt.figure(figsize=(10,10), dpi=200)
-    for sp in range(1,5,1):
-      ax = fig.add_subplot(2,2,sp, projection='3d')
+    for sp in range(1,26,1):
+      ax = fig.add_subplot(5,5,sp, projection='3d')
       #ax = fig.gca( projection='3d')
       vox = vox_in[sp]
       ax.voxels(vox, shade=True, alpha=0.45)

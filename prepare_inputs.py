@@ -136,6 +136,11 @@ def prepare_fromSim(filename, suf, nbins= [6,6,6], isPU=False):
   tTsM_out = ak.ArrayBuilder()
   ev_info =  ak.ArrayBuilder()
 
+  nev_selected = 0
+  nev_en_pass = 0
+  nev_score_pass = 0
+  nev_both_pass = 0
+  nev_none_pass = 0
 
   for i, s2r_ind in enumerate(simToReco_index): # looping over all the events
   #for i, s2r_ind in enumerate(simToReco_index[:101]): # looping over all the events
@@ -188,14 +193,29 @@ def prepare_fromSim(filename, suf, nbins= [6,6,6], isPU=False):
         ## Defition of the target
         ##################################
         max_score_s2r = 0.35
-        min_energy_s2r = 0.0
+        min_energy_s2r = 0.5
         isPassScore = simToReco_score[i][j][k] < max_score_s2r 
-        en_frac = mTs_en/simtrackstersCP_raw_energy[i][j]
+        isPassEn = mTs_en/simtrackstersCP_raw_energy[i][j] > min_energy_s2r 
+        #en_frac = mTs_en/simtrackstersCP_raw_energy[i][j]
+        print(isPassEn)
 
-        isPassEn = False
-        if np.any(en_frac > min_energy_s2r):
-          isPassEn = True
+        #isPassEn = False
+        nev_selected += 1
+        if isPassEn:
+          nev_en_pass += 1
+          #isPassEn = True
+        if isPassScore: 
+          nev_score_pass += 1
+        if isPassEn and isPassScore:
+          nev_both_pass +=1
+        else:
+          nev_none_pass +=1
         tTsM.append(isPassScore)
+  print(f"nev_selected: {nev_selected}") 
+  print(f"nev_en_pass: {nev_en_pass}") 
+  print(f"nev_score_pass: {nev_score_pass}")
+  print(f"nev_both_pass: {nev_both_pass}")
+  print(f"nev_none_pass: {nev_none_pass}")
 
   ev_info = ev_info.snapshot()
   fTsM_en_cls = save_array_to_file(fTsM_en_cls, f"{suf}_en_cls.parquet")
